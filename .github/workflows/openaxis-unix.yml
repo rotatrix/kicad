@@ -139,7 +139,9 @@ jobs:
         run: |
           cmake --build build/macos --parallel 3 2>&1 | tee build/macos/build.log
           cmake --install build/macos
-          app=$(find stage -name KiCad.app -type d -prune -print -quit)
+          install_prefix=$(sed -n 's/^CMAKE_INSTALL_PREFIX:[^=]*=//p' build/macos/CMakeCache.txt)
+          test -d "$install_prefix"
+          app=$(find "$install_prefix" -name KiCad.app -type d -prune -print -quit)
           test -n "$app"
           "$app/Contents/MacOS/kicad-cli" version
           mkdir -p artifacts
