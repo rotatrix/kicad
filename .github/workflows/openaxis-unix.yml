@@ -5,16 +5,23 @@ on:
   push:
     branches: [rotatrix/stable]
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to build
+        type: choice
+        default: all
+        options: [all, linux, macos]
 
 permissions:
   contents: read
 
 concurrency:
-  group: openaxis-unix-${{ github.ref }}
+  group: openaxis-unix-${{ github.ref }}-${{ inputs.platform || 'all' }}
   cancel-in-progress: false
 
 jobs:
   linux:
+    if: github.event_name != 'workflow_dispatch' || inputs.platform != 'macos'
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     container:
@@ -74,6 +81,7 @@ jobs:
             build/linux/Testing/Temporary/LastTest.log
 
   macos:
+    if: github.event_name != 'workflow_dispatch' || inputs.platform != 'linux'
     runs-on: macos-15
     timeout-minutes: 360
     defaults:
@@ -91,6 +99,7 @@ jobs:
           git clone https://gitlab.com/kicad/packaging/kicad-mac-builder.git build-tools/mac-builder
           git -C build-tools/mac-builder checkout 370400dc2e5cbfcd20b762c02f45730755516e87
           build-tools/mac-builder/ci/arm64-on-arm64/bootstrap-arm64-on-arm64.sh
+          brew install swig
       - uses: actions/cache/restore@v4
         id: mac-deps
         with:
