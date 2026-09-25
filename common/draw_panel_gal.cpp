@@ -53,6 +53,10 @@
 #include <core/profile.h>
 
 #include <wx/display.h>
+#ifdef KICAD_OPENAXIS
+#include <openaxis/navigation.h>
+#include <openaxis/camera.h>
+#endif
 
 #include <pgm_base.h>
 #include <confirm.h>
@@ -171,6 +175,9 @@ EDA_DRAW_PANEL_GAL::EDA_DRAW_PANEL_GAL( wxWindow* aParentWindow, wxWindowID aWin
 
 EDA_DRAW_PANEL_GAL::~EDA_DRAW_PANEL_GAL()
 {
+#ifdef KICAD_OPENAXIS
+    m_openaxis.reset();
+#endif
     // Ensure EDA_DRAW_PANEL_GAL::onShowEvent is not fired during Dtor process
     Disconnect( wxEVT_SHOW, wxShowEventHandler( EDA_DRAW_PANEL_GAL::onShowEvent ) );
     StopDrawing();
@@ -194,8 +201,51 @@ void EDA_DRAW_PANEL_GAL::SetFocus()
 
 void EDA_DRAW_PANEL_GAL::onPaint( wxPaintEvent& WXUNUSED( aEvent ) )
 {
+#ifdef KICAD_OPENAXIS
+    initOpenAxis();
+#endif
     DoRePaint( false );
 }
+
+#ifdef KICAD_OPENAXIS
+void EDA_DRAW_PANEL_GAL::initOpenAxis()
+{
+    if( m_openaxis || !m_view || !m_edaFrame ) return;
+    const auto type = m_edaFrame->GetFrameType();
+    if( type != FRAME_SCH && type != FRAME_PCB_EDITOR ) return;
+    OPENAXIS_NAVIGATION::HOST host;
+    host.tags = { "app.kicad", type == FRAME_SCH ? "workspace.schematic" : "workspace.pcb",
+                  "viewspace.2d" };
+    host.context = [this] {
+        if( !m_view || !m_edaFrame->GetScreen() ) return std::string{};
+        return std::to_string( reinterpret_cast<std::uintptr_t>( m_edaFrame->GetScreen() ) )
+               + "/" + std::to_string( reinterpret_cast<std::uintptr_t>( m_view ) )
+               + "/" + std::to_string( m_view->GetContentRevision() )
+               + "/" + std::to_string( m_view->IsMirroredX() )
+               + "/" + std::to_string( m_view->IsMirroredY() );
+    };
+    const auto depth = std::make_shared<double>( 0.0 );
+    host.read = [this, depth]() -> std::optional<openaxis::Pose> {
+        if( !m_view || GetClientSize().y <= 0 ) return {};
+        const auto center = m_view->GetCenter();
+        const double extent = m_view->ToWorld( double( m_view->GetScreenPixelSize().y ) );
+        if( !std::isfinite( extent ) || extent <= 0 ) return {};
+        // KiCad drawing Y points down. Publish a right-handed camera in Y-up space.
+        return KICAD_OPENAXIS_CAMERA::Read2D( center.x, center.y, extent,
+                m_view->IsMirroredX(), m_view->IsMirroredY(), *depth );
+    };
+    host.write = [this, depth]( const openaxis::Pose& pose ) {
+        if( !m_view || !std::isfinite( pose.ortho_extent ) || pose.ortho_extent <= 0 ) return false;
+        const double extent = m_view->ToWorld( double( m_view->GetScreenPixelSize().y ) );
+        m_view->SetScale( m_view->GetScale() * extent / pose.ortho_extent );
+        m_view->SetCenter( { pose.t.x, -pose.t.y } );
+        *depth = pose.t.z;
+        Refresh();
+        return true;
+    };
+    m_openaxis = std::make_unique<OPENAXIS_NAVIGATION>( *this, std::move( host ) );
+}
+#endif
 
 
 bool EDA_DRAW_PANEL_GAL::recoverFromGalError( const std::exception& aError )

@@ -147,3 +147,7 @@ else()
     add_subdirectory( 3d_navlib )
     target_link_libraries( 3d-viewer PRIVATE 3d-viewer_navlib)
 endif()
+
+if(KICAD_OPENAXIS)
+    target_link_libraries(3d-viewer PRIVATE OpenAxis::openaxis)
+endif()

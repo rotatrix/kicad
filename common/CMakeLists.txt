@@ -1242,3 +1242,7 @@ make_lexer_export(
 # to build it, first enable #define STAND_ALONE at top of dsnlexer.cpp
 add_executable( dsntest EXCLUDE_FROM_ALL dsnlexer.cpp )
 target_link_libraries( dsntest common ${wxWidgets_LIBRARIES} rt )
+
+if(KICAD_OPENAXIS)
+    target_link_libraries(common OpenAxis::openaxis)
+endif()

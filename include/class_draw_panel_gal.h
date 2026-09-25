@@ -45,6 +45,7 @@ class EDA_DRAW_FRAME;
 class TOOL_DISPATCHER;
 class PROF_COUNTER;
 class wxImage;
+class OPENAXIS_NAVIGATION;
 
 namespace KIGFX
 {
@@ -286,6 +287,10 @@ public:
     std::unique_ptr<PROF_COUNTER> m_PaintEventCounter;
 
 protected:
+#ifdef KICAD_OPENAXIS
+    std::unique_ptr<OPENAXIS_NAVIGATION> m_openaxis;
+    void initOpenAxis();
+#endif
     virtual void onPaint( wxPaintEvent& WXUNUSED( aEvent ) );
     void onSize( wxSizeEvent& aEvent );
     void onEnter( wxMouseEvent& aEvent );

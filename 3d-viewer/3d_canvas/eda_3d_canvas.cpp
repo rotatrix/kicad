@@ -32,6 +32,13 @@
 
 #include "../common_ogl/ogl_utils.h"
 #include "eda_3d_canvas.h"
+#ifdef KICAD_OPENAXIS
+#include <openaxis/navigation.h>
+#include <openaxis/camera.h>
+#endif
+
+#include <optional>
+
 #include <eda_3d_viewer_frame.h>
 #include <3d_rendering/raytracing/render_3d_raytrace_gl.h>
 #include <3d_rendering/opengl/render_3d_opengl.h>
@@ -176,6 +183,9 @@ EDA_3D_CANVAS::EDA_3D_CANVAS( wxWindow* aParent, const wxGLAttributes& aGLAttrib
 
 EDA_3D_CANVAS::~EDA_3D_CANVAS()
 {
+#ifdef KICAD_OPENAXIS
+    m_openaxis.reset();
+#endif
     wxLogTrace( m_logTrace, wxT( "EDA_3D_CANVAS::~EDA_3D_CANVAS" ) );
 
     delete m_accelerator3DShapes;
@@ -320,6 +330,9 @@ void EDA_3D_CANVAS::GetScreenshot( wxImage& aDstImage )
 
 void EDA_3D_CANVAS::ReloadRequest( BOARD* aBoard , S3D_CACHE* aCachePointer )
 {
+#ifdef KICAD_OPENAXIS
+    if( m_openaxis ) m_openaxis->Invalidate();
+#endif
     if( aCachePointer != nullptr )
         m_boardAdapter.Set3dCacheManager( aCachePointer );
 
@@ -369,7 +382,51 @@ void EDA_3D_CANVAS::OnPaint( wxPaintEvent& aEvent )
 {
     // Please have a look at: https://lists.launchpad.net/kicad-developers/msg25149.html
     DoRePaint();
+#ifdef KICAD_OPENAXIS
+    InitOpenAxis();
+#endif
 }
+
+#ifdef KICAD_OPENAXIS
+void EDA_3D_CANVAS::InitOpenAxis()
+{
+    if( m_openaxis ) return;
+    OPENAXIS_NAVIGATION::HOST host;
+    host.tags = { "app.kicad", "workspace.3dviewer", "viewspace.3d" };
+    host.context = [this] {
+        if( !m_boardAdapter.GetBoard() || IsReloadRequestPending() || m_camera_is_moving )
+            return std::string{};
+        return std::to_string( reinterpret_cast<std::uintptr_t>( m_boardAdapter.GetBoard() ) )
+               + "/" + std::to_string( GetProjectionMode() );
+    };
+    host.read = [this] { return KICAD_OPENAXIS_CAMERA::Read( m_camera ); };
+    host.write = [this]( const openaxis::Pose& pose ) {
+        const bool written = KICAD_OPENAXIS_CAMERA::Write( m_camera, pose );
+        if( written ) Request_refresh();
+        return written;
+    };
+    host.fact = [this]( const std::string& name ) -> openaxis::Value {
+        if( name == "world.orientation" )
+            return { { "up", { 0, 0, 1 } }, { "forward", { 0, 1, 0 } },
+                     { "handedness", "right" } };
+        if( name == "model.bounds" )
+        {
+            const auto& bounds = m_boardAdapter.GetBBox();
+            const auto& lo = bounds.Min();
+            const auto& hi = bounds.Max();
+            if( lo.x <= hi.x && lo.y <= hi.y && lo.z <= hi.z )
+                return { { "min", { lo.x, lo.y, lo.z } }, { "max", { hi.x, hi.y, hi.z } } };
+        }
+        return nullptr;
+    };
+    host.pivot = [this]( std::optional<openaxis::Vec3> point ) {
+        SetRender3dmousePivot( point.has_value() );
+        if( point ) Set3dmousePivotPos( SFVEC3F( point->x, point->y, point->z ) );
+        Request_refresh();
+    };
+    m_openaxis = std::make_unique<OPENAXIS_NAVIGATION>( *this, std::move( host ) );
+}
+#endif
 
 
 void EDA_3D_CANVAS::DoRePaint()

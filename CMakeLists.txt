@@ -1228,6 +1228,7 @@ endif()
 add_subdirectory( api )
 add_subdirectory( resources )
 add_subdirectory( thirdparty )
+include( cmake/OpenAxis.cmake )
 add_subdirectory( libs )
 add_subdirectory( scripting )
 add_subdirectory( common )
@@ -1243,6 +1244,10 @@ add_subdirectory( cvpcb )               # must be after pcbnew
 add_subdirectory( kicad )               # should follow pcbnew, eeschema, api
 add_subdirectory( tools )
 add_subdirectory( utils )
+
+if( KICAD_OPENAXIS )
+    add_subdirectory( qa/openaxis )
+endif()
 
 if( KICAD_BUILD_QA_TESTS )
     add_subdirectory( qa )

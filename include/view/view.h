@@ -392,6 +392,9 @@ public:
      */
     void Clear();
 
+    /// Changes when the displayed document is cleared/replaced, even if VIEW is reused.
+    unsigned long long GetContentRevision() const { return m_contentRevision; }
+
     /**
      * Control the visibility of a particular layer.
      *
@@ -765,6 +768,7 @@ public:
     static constexpr int TOP_LAYER_MODIFIER = -MAX_LAYERS_FOR_VIEW;
 
 protected:
+    unsigned long long m_contentRevision = 0;
     struct VIEW_LAYER
     {
         bool                    visible;         ///< Is the layer to be rendered?

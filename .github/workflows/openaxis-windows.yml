@@ -1,0 +1,98 @@
+name: OpenAxis Windows x64
+
+on:
+  push:
+    branches: [rotatrix/stable]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openaxis-windows-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Cache compiled dependencies
+        id: dependency-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/AppData/Local/vcpkg/archives
+          key: kicad-openaxis-v143-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}-${{ github.run_id }}
+          restore-keys: kicad-openaxis-v143-${{ runner.os }}-
+      - name: Configure
+        run: ./tools/build-openaxis-windows.ps1 -Stage Configure -BuilderPath D:/kb -Jobs 4
+      - name: Build and install
+        run: ./tools/build-openaxis-windows.ps1 -Stage Build -BuilderPath D:/kb -Jobs 4
+      - name: Package with official KiCad NSIS scripts
+        run: ./tools/build-openaxis-windows.ps1 -Stage Package -BuilderPath D:/kb
+      - name: Stage installer and provenance
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          $installers = @(Get-ChildItem D:/kb/.out -Filter 'rotatrix-kicad-openaxis-*.exe')
+          if (!$installers.Count) { throw 'No installer was produced' }
+          $installers | Copy-Item -Destination artifacts
+          git rev-parse HEAD | Set-Content artifacts/source-commit.txt
+          Get-FileHash artifacts/*.exe -Algorithm SHA256 | ForEach-Object {
+            "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))"
+          } | Set-Content artifacts/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rotatrix-kicad-openaxis-windows-x64
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Save dependency progress even after a failed build
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/AppData/Local/vcpkg/archives
+          key: ${{ steps.dependency-cache.outputs.cache-primary-key }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: windows-build-logs
+          path: |
+            build/x64-windows-Release/CMakeFiles/CMakeConfigureLog.yaml
+            build/x64-windows-Release/vcpkg-manifest-install.log
+            D:/kb/vcpkg/buildtrees/**/*.log
+
+  draft-release:
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: rotatrix-kicad-openaxis-windows-x64
+          path: artifacts
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          tag="10.0.6-openaxis.${RUN_NUMBER}"
+          cat > notes.md <<'EOF'
+          KiCad 10.0 stable fork with OpenAxis navigation in the 3D viewer,
+          schematic editor and PCB editor. Windows x64, unsigned Lite installer;
+          symbol, footprint and 3D model libraries are not bundled.
+
+          Built with the official KiCad Windows NSIS packaging scripts.
+          OpenAxis-enabled binaries use the SDK's GPL-3.0-only license option.
+          Hardware navigation acceptance remains a manual test before publication.
+          EOF
+          gh release create "$tag" artifacts/* --draft --target "$SOURCE_SHA" \
+            --title "KiCad OpenAxis Windows x64 build ${RUN_NUMBER}" --notes-file notes.md
