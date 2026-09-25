@@ -40,7 +40,7 @@ jobs:
           path: .ccache
           key: openaxis-fedora41-${{ github.sha }}
           restore-keys: openaxis-fedora41-
-      - name: Configure and build
+      - name: Configure
         run: |
           export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache"
           export CCACHE_MAXSIZE=2G
@@ -50,13 +50,18 @@ jobs:
             -DKICAD_USE_CMAKE_FINDPROTOBUF=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_INSTALL_PREFIX=/usr
-          cmake --build build/linux --parallel 3 2>&1 | tee build/linux/build.log
-      - name: Regression checks and CLI smoke test
+      - name: Regression checks
         run: |
+          cmake --build build/linux --target openaxis_camera_checks openaxis_scheduler_checks --parallel 3
           Xvfb :99 -screen 0 1280x1024x24 &
           export DISPLAY=:99
           sleep 1
           ctest --test-dir build/linux -R 'openaxis_(native_camera|wx_scheduler)' --output-on-failure --no-tests=error
+      - name: Build and CLI smoke test
+        run: |
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache"
+          export CCACHE_MAXSIZE=2G
+          cmake --build build/linux --parallel 3 2>&1 | tee build/linux/build.log
           build/linux/kicad/kicad-cli version
       - name: Stage Fedora test build
         run: |
@@ -110,7 +115,7 @@ jobs:
         run: |
           cd build-tools/mac-builder
           python3 build.py --arch arm64 --wx-version 3.3 --build-type Release --jobs 3 --no-retry-failed-build --target setup-kicad-dependencies
-      - name: Configure and build
+      - name: Configure
         run: |
           python_executable="$(command -v python3)"
           python_include="$("$python_executable" -c 'import sysconfig; print(sysconfig.get_path("include"))')"
@@ -126,10 +131,13 @@ jobs:
             -DPYTHON_FRAMEWORK="$python_framework" \
             -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" \
             -DCMAKE_INSTALL_PREFIX="$PWD/stage"
-          cmake --build build/macos --parallel 3 2>&1 | tee build/macos/build.log
-      - name: Regression checks and bundle
+      - name: Regression checks
         run: |
+          cmake --build build/macos --target openaxis_camera_checks openaxis_scheduler_checks --parallel 3
           ctest --test-dir build/macos -R 'openaxis_(native_camera|wx_scheduler)' --output-on-failure --no-tests=error
+      - name: Build and bundle
+        run: |
+          cmake --build build/macos --parallel 3 2>&1 | tee build/macos/build.log
           cmake --install build/macos
           app=$(find stage -name KiCad.app -type d -prune -print -quit)
           test -n "$app"
