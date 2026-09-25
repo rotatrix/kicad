@@ -1,0 +1,142 @@
+name: OpenAxis Linux and macOS
+
+on:
+  push:
+    branches: [rotatrix/stable]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openaxis-unix-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    container:
+      image: registry.gitlab.com/kicad/kicad-ci/source_containers/master/fedora:41
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Install test display and SDK crypto dependency
+        run: dnf install -y xorg-x11-server-Xvfb xorg-x11-xauth openssl-devel
+      - uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: openaxis-fedora41-${{ github.sha }}
+          restore-keys: openaxis-fedora41-
+      - name: Configure and build
+        run: |
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache"
+          export CCACHE_MAXSIZE=2G
+          cmake -S . -B build/linux -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DKICAD_OPENAXIS=ON \
+            -DKICAD_BUILD_QA_TESTS=OFF -DKICAD_BUILD_I18N=ON \
+            -DKICAD_USE_CMAKE_FINDPROTOBUF=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build/linux --parallel 3 2>&1 | tee build/linux/build.log
+      - name: Regression checks and CLI smoke test
+        run: |
+          Xvfb :99 -screen 0 1280x1024x24 &
+          export DISPLAY=:99
+          sleep 1
+          ctest --test-dir build/linux -R 'openaxis_(native_camera|wx_scheduler)' --output-on-failure --no-tests=error
+          build/linux/kicad/kicad-cli version
+      - name: Stage Fedora test build
+        run: |
+          DESTDIR="$PWD/stage" cmake --install build/linux
+          mkdir -p artifacts
+          tar -C stage -czf artifacts/rotatrix-kicad-openaxis-linux-x64.tar.gz .
+          printf '%s\n' "$GITHUB_SHA" > artifacts/source-commit.txt
+          printf '%s\n' 'Fedora 41 x64 test build. Requires system KiCad dependencies; shared dependencies and symbol, footprint and 3D model libraries are not bundled.' > artifacts/README.txt
+          sha256sum artifacts/*.tar.gz > artifacts/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rotatrix-kicad-openaxis-linux-x64
+          path: artifacts/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: linux-build-logs
+          path: |
+            build/linux/build.log
+            build/linux/CMakeFiles/CMakeConfigureLog.yaml
+            build/linux/Testing/Temporary/LastTest.log
+
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    env:
+      WX_SKIP_DOXYGEN_VERSION_CHECK: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Check out official dependency builder
+        run: |
+          test "$(uname -m)" = arm64
+          git clone https://gitlab.com/kicad/packaging/kicad-mac-builder.git build-tools/mac-builder
+          git -C build-tools/mac-builder checkout 370400dc2e5cbfcd20b762c02f45730755516e87
+          build-tools/mac-builder/ci/arm64-on-arm64/bootstrap-arm64-on-arm64.sh
+      - uses: actions/cache/restore@v4
+        id: mac-deps
+        with:
+          path: build-tools/mac-builder/build
+          key: openaxis-macos15-arm64-370400dc-${{ github.run_id }}
+          restore-keys: openaxis-macos15-arm64-370400dc-
+      - name: Build dependencies
+        run: |
+          cd build-tools/mac-builder
+          python3 build.py --arch arm64 --wx-version 3.3 --build-type Release --jobs 3 --no-retry-failed-build --target setup-kicad-dependencies
+      - name: Configure and build
+        run: |
+          cmake -S . -B build/macos -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/build-tools/mac-builder/toolchain/kicad-mac-builder.cmake" \
+            -DCMAKE_BUILD_TYPE=Release -DKICAD_OPENAXIS=ON \
+            -DKICAD_BUILD_QA_TESTS=OFF -DKICAD_BUILD_I18N=ON \
+            -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" \
+            -DCMAKE_INSTALL_PREFIX="$PWD/stage"
+          cmake --build build/macos --parallel 3 2>&1 | tee build/macos/build.log
+      - name: Regression checks and bundle
+        run: |
+          ctest --test-dir build/macos -R 'openaxis_(native_camera|wx_scheduler)' --output-on-failure --no-tests=error
+          cmake --install build/macos
+          app=$(find stage -name KiCad.app -type d -prune -print -quit)
+          test -n "$app"
+          "$app/Contents/MacOS/kicad-cli" version
+          mkdir -p artifacts
+          ditto -c -k --sequesterRsrc --keepParent "$app" artifacts/rotatrix-kicad-openaxis-macos-arm64.zip
+          printf '%s\n' "$GITHUB_SHA" > artifacts/source-commit.txt
+          printf '%s\n' 'Apple Silicon test build, ad-hoc signed and not notarized. Symbol, footprint and 3D model libraries are not bundled.' > artifacts/README.txt
+          shasum -a 256 artifacts/*.zip > artifacts/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rotatrix-kicad-openaxis-macos-arm64
+          path: artifacts/*
+          if-no-files-found: error
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: build-tools/mac-builder/build
+          key: ${{ steps.mac-deps.outputs.cache-primary-key }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: macos-build-logs
+          path: |
+            build/macos/build.log
+            build/macos/CMakeFiles/CMakeConfigureLog.yaml
+            build/macos/Testing/Temporary/LastTest.log
+            build-tools/mac-builder/build/**/*.log

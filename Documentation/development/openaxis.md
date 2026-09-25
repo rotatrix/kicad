@@ -59,6 +59,15 @@ uploads the installer and SHA-256 hashes, and creates a **draft** release only
 after packaging succeeds. Failed builds upload their logs. Hardware acceptance
 is required before publishing a release.
 
+The separate Linux and macOS workflow runs concurrently with Windows. Linux
+uses KiCad's Fedora 41 CI image and uploads a staged x64 installation archive
+that requires the distribution's shared dependencies. macOS builds for Apple
+Silicon with the official macOS builder pinned to
+`370400dc2e5cbfcd20b762c02f45730755516e87`, then uploads an ad-hoc signed app
+bundle. These are test artifacts, without bundled content libraries; the macOS
+bundle is not notarized. Both jobs run the OpenAxis regressions and a CLI smoke
+test before uploading binaries.
+
 ## Licensing and provenance
 
 OpenAxis's GPL-3.0-only license option applies to these combined binaries.
