@@ -31,15 +31,15 @@ jobs:
           key: kicad-openaxis-v143-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}-${{ github.run_id }}
           restore-keys: kicad-openaxis-v143-${{ runner.os }}-
       - name: Configure
-        run: ./tools/build-openaxis-windows.ps1 -Stage Configure -BuilderPath D:/kb -Jobs 4
+        run: ./tools/build-openaxis-windows.ps1 -Stage Configure -BuilderPath C:/kb -Jobs 4
       - name: Build and install
-        run: ./tools/build-openaxis-windows.ps1 -Stage Build -BuilderPath D:/kb -Jobs 4
+        run: ./tools/build-openaxis-windows.ps1 -Stage Build -BuilderPath C:/kb -Jobs 4
       - name: Package with official KiCad NSIS scripts
-        run: ./tools/build-openaxis-windows.ps1 -Stage Package -BuilderPath D:/kb
+        run: ./tools/build-openaxis-windows.ps1 -Stage Package -BuilderPath C:/kb
       - name: Stage installer and provenance
         run: |
           New-Item -ItemType Directory -Force artifacts | Out-Null
-          $installers = @(Get-ChildItem D:/kb/.out -Filter 'rotatrix-kicad-openaxis-*.exe')
+          $installers = @(Get-ChildItem C:/kb/.out -Filter 'rotatrix-kicad-openaxis-*.exe')
           if (!$installers.Count) { throw 'No installer was produced' }
           $installers | Copy-Item -Destination artifacts
           git rev-parse HEAD | Set-Content artifacts/source-commit.txt
@@ -65,7 +65,7 @@ jobs:
           path: |
             build/x64-windows-Release/CMakeFiles/CMakeConfigureLog.yaml
             build/x64-windows-Release/vcpkg-manifest-install.log
-            D:/kb/vcpkg/buildtrees/**/*.log
+            C:/kb/vcpkg/buildtrees/**/*.log
 
   draft-release:
     needs: windows
