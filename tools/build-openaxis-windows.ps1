@@ -52,6 +52,10 @@ if ($oaStage -in @('Configure', 'All')) {
         '-DKICAD_BUILD_QA_TESTS=OFF', '-DKICAD_BUILD_I18N=ON',
         '-DKICAD_WIN32_DPI_AWARE=ON', '-DKICAD_SCRIPTING_WXPYTHON=ON')
     if ($oaSdk) { $oaArgs += "-DOPENAXIS_SOURCE_DIR=$oaSdk" }
+    if ($env:GITHUB_ACTIONS -eq 'true') {
+        # Hosted runners have limited disk space; retain installed files and binary cache.
+        $oaArgs += '-DVCPKG_INSTALL_OPTIONS=--clean-buildtrees-after-build;--clean-packages-after-build'
+    }
     & cmake @oaArgs
     if ($LASTEXITCODE) { throw 'CMake configuration failed' }
 }
