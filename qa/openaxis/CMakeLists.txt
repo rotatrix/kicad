@@ -45,6 +45,7 @@ else()
     target_sources(openaxis_scheduler_checks PRIVATE ${OPENAXIS_SOURCE_DIR}/cpp/src/diagnostics.cpp)
 endif()
 add_test(NAME openaxis_wx_scheduler COMMAND openaxis_scheduler_checks)
+set_tests_properties(openaxis_native_camera openaxis_wx_scheduler PROPERTIES TIMEOUT 60)
 
 if(MSVC AND TARGET kicommon)
     # Full-tree checks use KiCad's shared JSON exports, unlike standalone checks.
