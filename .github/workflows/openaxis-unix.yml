@@ -115,6 +115,7 @@ jobs:
           python_executable="$(command -v python3)"
           python_include="$("$python_executable" -c 'import sysconfig; print(sysconfig.get_path("include"))')"
           python_library="$("$python_executable" -c 'import pathlib,sys; p=pathlib.Path(sys.base_prefix)/"Python"; assert p.is_file(),p; print(p)')"
+          python_framework="$("$python_executable" -c 'import pathlib,sys; p=pathlib.Path(sys.base_prefix).parents[1]; assert p.name == "Python.framework",p; print(p)')"
           cmake -S . -B build/macos -G Ninja \
             -DCMAKE_TOOLCHAIN_FILE="$PWD/build-tools/mac-builder/toolchain/kicad-mac-builder.cmake" \
             -DCMAKE_BUILD_TYPE=Release -DKICAD_OPENAXIS=ON \
@@ -122,6 +123,7 @@ jobs:
             -DKICAD_SCRIPTING_WXPYTHON=OFF \
             -DPYTHON_EXECUTABLE="$python_executable" \
             -DPYTHON_INCLUDE_DIR="$python_include" -DPYTHON_LIBRARY="$python_library" \
+            -DPYTHON_FRAMEWORK="$python_framework" \
             -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" \
             -DCMAKE_INSTALL_PREFIX="$PWD/stage"
           cmake --build build/macos --parallel 3 2>&1 | tee build/macos/build.log
