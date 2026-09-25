@@ -45,3 +45,13 @@ else()
     target_sources(openaxis_scheduler_checks PRIVATE ${OPENAXIS_SOURCE_DIR}/cpp/src/diagnostics.cpp)
 endif()
 add_test(NAME openaxis_wx_scheduler COMMAND openaxis_scheduler_checks)
+
+if(MSVC AND TARGET kicommon)
+    # Full-tree checks use KiCad's shared JSON exports, unlike standalone checks.
+    foreach(check IN ITEMS openaxis_camera_checks openaxis_scheduler_checks)
+        add_custom_command(TARGET ${check} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:${check}> $<TARGET_FILE_DIR:${check}>
+            COMMAND_EXPAND_LISTS)
+    endforeach()
+endif()
