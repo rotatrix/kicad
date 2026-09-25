@@ -1,4 +1,5 @@
 name: OpenAxis Linux and macOS
+run-name: Linux and macOS OpenAxis build ${{ github.run_number }}
 
 on:
   push:

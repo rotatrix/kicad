@@ -1,4 +1,5 @@
 name: OpenAxis Windows x64
+run-name: Windows x64 OpenAxis build ${{ github.run_number }}
 
 on:
   push:
