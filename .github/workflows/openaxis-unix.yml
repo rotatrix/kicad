@@ -119,6 +119,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$PWD/build-tools/mac-builder/toolchain/kicad-mac-builder.cmake" \
             -DCMAKE_BUILD_TYPE=Release -DKICAD_OPENAXIS=ON \
             -DKICAD_BUILD_QA_TESTS=OFF -DKICAD_BUILD_I18N=ON \
+            -DKICAD_SCRIPTING_WXPYTHON=OFF \
             -DPYTHON_EXECUTABLE="$python_executable" \
             -DPYTHON_INCLUDE_DIR="$python_include" -DPYTHON_LIBRARY="$python_library" \
             -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" \
@@ -134,7 +135,7 @@ jobs:
           mkdir -p artifacts
           ditto -c -k --sequesterRsrc --keepParent "$app" artifacts/rotatrix-kicad-openaxis-macos-arm64.zip
           printf '%s\n' "$GITHUB_SHA" > artifacts/source-commit.txt
-          printf '%s\n' 'Apple Silicon test build, ad-hoc signed and not notarized. Symbol, footprint and 3D model libraries are not bundled.' > artifacts/README.txt
+          printf '%s\n' 'Apple Silicon test build, ad-hoc signed and not notarized. Optional wxPython GUI scripting is disabled. Symbol, footprint and 3D model libraries are not bundled.' > artifacts/README.txt
           shasum -a 256 artifacts/*.zip > artifacts/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:

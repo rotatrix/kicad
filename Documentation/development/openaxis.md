@@ -67,6 +67,8 @@ Silicon with the official macOS builder pinned to
 bundle. These are test artifacts, without bundled content libraries; the macOS
 bundle is not notarized. Both jobs run the OpenAxis regressions and a CLI smoke
 test before uploading binaries.
+The macOS test build disables optional wxPython GUI scripting because the
+selected dependency builder supplies native wxWidgets without wxPython bindings.
 
 ## Licensing and provenance
 
