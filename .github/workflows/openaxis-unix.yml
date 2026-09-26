@@ -138,11 +138,12 @@ jobs:
       - name: Build and bundle
         run: |
           cmake --build build/macos --parallel 3 2>&1 | tee build/macos/build.log
+          # The official builder installs here, overriding the cached prefix.
+          # Its dependency cache can also contain a bundle from an earlier run.
+          app="$PWD/build-tools/mac-builder/build/kicad-dest/KiCad.app"
+          rm -rf "$app"
           cmake --install build/macos
-          install_prefix=$(sed -n 's/^CMAKE_INSTALL_PREFIX:[^=]*=//p' build/macos/CMakeCache.txt)
-          test -d "$install_prefix"
-          app=$(find "$install_prefix" -name KiCad.app -type d -prune -print -quit)
-          test -n "$app"
+          test -d "$app"
           "$app/Contents/MacOS/kicad-cli" version
           mkdir -p artifacts
           ditto -c -k --sequesterRsrc --keepParent "$app" artifacts/rotatrix-kicad-openaxis-macos-arm64.zip
