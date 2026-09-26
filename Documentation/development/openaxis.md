@@ -1,7 +1,6 @@
 # OpenAxis navigation in the Rotatrix KiCad fork
 
-`rotatrix/stable` follows upstream KiCad's `10.0` branch (latest released version
-at integration start: 10.0.6). OpenAxis is optional, enabled with
+`rotatrix/work/10.0.6` is a development branch based on the exact upstream `10.0.6` tag. OpenAxis is optional, enabled with
 `-DKICAD_OPENAXIS=ON`. Builds fetch SDK release `cpp/v1.0.0-rc.1`, pinned to
 `acc4da095cde6747556245b4b6c110c16b968b6b`. For SDK development, set
 `-DOPENAXIS_SOURCE_DIR=C:/path/to/openaxis`.
@@ -55,9 +54,7 @@ The initial dependency build may take several hours if KiCad's public binary
 cache has no matching packages. Subsequent builds reuse the local vcpkg cache.
 
 GitHub Actions runs the same wrapper on `windows-2022`, caches dependencies,
-uploads the installer and SHA-256 hashes, and creates a **draft** release only
-after packaging succeeds. Failed builds upload their logs. Hardware acceptance
-is required before publishing a release.
+uploads the installer and SHA-256 hashes as temporary test artifacts. Builds run on rotatrix/** pushes and PRs targeting rotatrix/*; artifact names include the source SHA and binaries expire after 14 days. Work-branch CI does not create releases. Failed builds upload their logs.
 
 The separate Linux and macOS workflow runs concurrently with Windows. Linux
 uses KiCad's Fedora 41 CI image and uploads a staged x64 installation archive
@@ -96,3 +93,9 @@ dialogs, reconnect, and closing the application during a gesture. In schematic
 and PCB editors, check cursor-anchored zoom, pan, sheet switching, mirrored PCB
 views and switching between multiple editor windows. Confirm that 2D views never
 tilt or roll and that only the foreground window accepts navigation.
+
+## Fork lifecycle
+
+Development stays on `rotatrix/work/10.0.6` until accepted. Then organize the downstream patches and create `rotatrix/10.0.6`, making it the default branch. Until then the work branch is the temporary default; the legacy `rotatrix/stable` history is preserved but superseded.
+
+Maintained history is append-only. Contributors target the maintained version branch. Future ports start from the exact upstream tag on a new work branch. Final immutable release tags use `10.0.6-rotatrix.N`; N resets for each upstream version. Permanent test releases use a beta suffix and GitHub prerelease status. Release automation must trigger on `*-rotatrix.*` and provide upstream-comparable packaging/signing before it is enabled. Current unsigned Lite/test artifacts are not final releases.

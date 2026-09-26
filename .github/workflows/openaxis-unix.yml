@@ -3,7 +3,9 @@ run-name: Linux and macOS OpenAxis build ${{ github.run_number }}
 
 on:
   push:
-    branches: [rotatrix/stable]
+    branches: ['rotatrix/**']
+  pull_request:
+    branches: ['rotatrix/*']
   workflow_dispatch:
     inputs:
       platform:
@@ -73,13 +75,15 @@ jobs:
           sha256sum artifacts/*.tar.gz > artifacts/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: rotatrix-kicad-openaxis-linux-x64
+          name: rotatrix-kicad-openaxis-linux-x64-${{ github.sha }}
           path: artifacts/*
           if-no-files-found: error
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: linux-build-logs
+          name: linux-build-logs-${{ github.sha }}
+          retention-days: 14
           path: |
             build/linux/build.log
             build/linux/CMakeFiles/CMakeConfigureLog.yaml
@@ -152,9 +156,10 @@ jobs:
           shasum -a 256 artifacts/*.zip > artifacts/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: rotatrix-kicad-openaxis-macos-arm64
+          name: rotatrix-kicad-openaxis-macos-arm64-${{ github.sha }}
           path: artifacts/*
           if-no-files-found: error
+          retention-days: 14
       - uses: actions/cache/save@v4
         if: always()
         with:
@@ -163,7 +168,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: macos-build-logs
+          name: macos-build-logs-${{ github.sha }}
+          retention-days: 14
           path: |
             build/macos/build.log
             build/macos/CMakeFiles/CMakeConfigureLog.yaml

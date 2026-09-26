@@ -3,7 +3,9 @@ run-name: Windows x64 OpenAxis build ${{ github.run_number }}
 
 on:
   push:
-    branches: [rotatrix/stable]
+    branches: ['rotatrix/**']
+  pull_request:
+    branches: ['rotatrix/*']
   workflow_dispatch:
 
 permissions:
@@ -49,10 +51,10 @@ jobs:
           } | Set-Content artifacts/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: rotatrix-kicad-openaxis-windows-x64
+          name: rotatrix-kicad-openaxis-windows-x64-${{ github.sha }}
           path: artifacts/*
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 14
       - name: Save dependency progress even after a failed build
         if: always()
         uses: actions/cache/save@v4
@@ -62,38 +64,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: windows-build-logs
+          name: windows-build-logs-${{ github.sha }}
+          retention-days: 14
           path: |
             build/x64-windows-Release/CMakeFiles/CMakeConfigureLog.yaml
             build/x64-windows-Release/vcpkg-manifest-install.log
             C:/kb/vcpkg/buildtrees/**/*.log
-
-  draft-release:
-    needs: windows
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: rotatrix-kicad-openaxis-windows-x64
-          path: artifacts
-      - name: Create draft release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          SOURCE_SHA: ${{ github.sha }}
-          RUN_NUMBER: ${{ github.run_number }}
-        run: |
-          tag="10.0.6-openaxis.${RUN_NUMBER}"
-          cat > notes.md <<'EOF'
-          KiCad 10.0 stable fork with OpenAxis navigation in the 3D viewer,
-          schematic editor and PCB editor. Windows x64, unsigned Lite installer;
-          symbol, footprint and 3D model libraries are not bundled.
-
-          Built with the official KiCad Windows NSIS packaging scripts.
-          OpenAxis-enabled binaries use the SDK's GPL-3.0-only license option.
-          Hardware navigation acceptance remains a manual test before publication.
-          EOF
-          gh release create "$tag" artifacts/* --draft --target "$SOURCE_SHA" \
-            --title "KiCad OpenAxis Windows x64 build ${RUN_NUMBER}" --notes-file notes.md
