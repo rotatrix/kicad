@@ -1,7 +1,7 @@
 # Run with Windows PowerShell 5.1 (the upstream builder uses System.Drawing).
 [CmdletBinding()]
 param(
-    [ValidateSet('Configure', 'Build', 'Package', 'All')][string]$Stage = 'All',
+    [ValidateSet('Configure', 'Check', 'Build', 'Package', 'All')][string]$Stage = 'All',
     [string]$BuilderPath = '',
     [string]$SdkPath = '',
     [ValidateRange(1, 32)][int]$Jobs = 4
@@ -59,15 +59,21 @@ if ($oaStage -in @('Configure', 'All')) {
     & cmake @oaArgs
     if ($LASTEXITCODE) { throw 'CMake configuration failed' }
 }
-if ($oaStage -in @('Build', 'All')) {
-    & cmake --build $oaBuild --parallel $oaJobs
+if ($oaStage -in @('Check', 'Build', 'All')) {
+    if ($oaStage -eq 'Check') {
+        & cmake --build $oaBuild --target openaxis_camera_checks openaxis_scheduler_checks --parallel $oaJobs
+    } else {
+        & cmake --build $oaBuild --parallel $oaJobs
+    }
     if ($LASTEXITCODE) { throw 'KiCad build failed' }
     $env:PATH = "$oaBuild/vcpkg_installed/x64-windows/bin;" + $env:PATH
     $oaCtest = Join-Path (Split-Path (Get-Command cmake).Definition -Parent) 'ctest.exe'
     & $oaCtest --test-dir $oaBuild -R 'openaxis_(native_camera|wx_scheduler)' --output-on-failure --no-tests=error
-    if ($LASTEXITCODE) { throw 'OpenAxis camera regression checks failed' }
-    & cmake --install $oaBuild
-    if ($LASTEXITCODE) { throw 'KiCad install failed' }
+    if ($LASTEXITCODE) { throw 'OpenAxis regression checks failed' }
+    if ($oaStage -ne 'Check') {
+        & cmake --install $oaBuild
+        if ($LASTEXITCODE) { throw 'KiCad install failed' }
+    }
 }
 if ($oaStage -in @('Package', 'All')) {
     # Upstream preparation replaces this generated tree. Validate it before deletion.

@@ -16,7 +16,9 @@ public:
     bool OnInit() override { return true; }
 };
 
+#ifndef __WXMSW__
 wxIMPLEMENT_APP_NO_MAIN( SCHEDULER_TEST_APP );
+#endif
 
 static void pump( wxEventLoop& loop, double seconds )
 {
@@ -34,6 +36,7 @@ static void pump( wxEventLoop& loop, double seconds )
 
 int main( int argc, char** argv )
 {
+    std::cout << "Initializing wx runtime" << std::endl;
     // GTK and Cocoa timers require a GUI wxApp, not wxInitializer's console fallback.
     // Assertions must fail the test instead of opening an unattended modal dialog.
     wxSetAssertHandler( []( const wxString& file, int line, const wxString& function,
@@ -42,12 +45,18 @@ int main( int argc, char** argv )
                   << ": " << condition.ToStdString() << ' ' << message.ToStdString() << std::endl;
         std::abort();
     } );
+#ifdef __WXMSW__
+    // Windows timers work with wxInitializer; keep the minimal test runtime.
+    wxInitializer initializer;
+    if( !initializer.IsOk() ) return 1;
+#else
     if( !wxEntryStart( argc, argv ) ) return 1;
     struct CLEANUP
     {
         ~CLEANUP() { wxTheApp->OnExit(); wxEntryCleanup(); }
     } cleanup;
     if( !wxTheApp->CallOnInit() ) return 1;
+#endif
     wxEventLoop loop;
     wxEventLoopActivator active( &loop );
     int count = 0;

@@ -35,6 +35,8 @@ jobs:
           restore-keys: kicad-openaxis-v143-${{ runner.os }}-
       - name: Configure
         run: ./tools/build-openaxis-windows.ps1 -Stage Configure -BuilderPath C:/kb -Jobs 4
+      - name: Regression checks
+        run: ./tools/build-openaxis-windows.ps1 -Stage Check -BuilderPath C:/kb -Jobs 4
       - name: Build and install
         run: ./tools/build-openaxis-windows.ps1 -Stage Build -BuilderPath C:/kb -Jobs 4
       - name: Package with official KiCad NSIS scripts
@@ -69,4 +71,10 @@ jobs:
           path: |
             build/x64-windows-Release/CMakeFiles/CMakeConfigureLog.yaml
             build/x64-windows-Release/vcpkg-manifest-install.log
-            C:/kb/vcpkg/buildtrees/**/*.log
+            build/x64-windows-Release/Testing/Temporary/LastTest.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: windows-dependency-logs-${{ github.sha }}
+          retention-days: 14
+          path: C:/kb/vcpkg/buildtrees/**/*.log
