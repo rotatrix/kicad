@@ -243,6 +243,14 @@ void EDA_DRAW_PANEL_GAL::initOpenAxis()
         Refresh();
         return true;
     };
+    host.fact = []( const std::string& name ) -> openaxis::Value {
+        // Read2D publishes drawing coordinates in a right-handed, Y-up XY plane.
+        // Orbit navigation requires this fact even when viewspace.2d locks rotation.
+        if( name == "world.orientation" )
+            return { { "up", { 0, 1, 0 } }, { "forward", { 0, 0, -1 } },
+                     { "handedness", "right" } };
+        return nullptr;
+    };
     m_openaxis = std::make_unique<OPENAXIS_NAVIGATION>( *this, std::move( host ) );
 }
 #endif
