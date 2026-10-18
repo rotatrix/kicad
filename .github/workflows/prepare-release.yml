@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: rotatrix/release-signing
-          ref: cd1c9b1235607a4c0c467bb1162761e80edb13c5 # shared signing client
+          ref: 019fd9367edbc3a6b9667266fbb9d5db0100705f # source-owned bundle entitlements
           token: ${{ secrets.SIGNER_DISPATCH_TOKEN }}
           path: .signer
           persist-credentials: false
