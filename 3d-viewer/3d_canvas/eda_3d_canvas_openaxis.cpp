@@ -27,7 +27,7 @@ public:
     // Unavailable while the scene reloads or a native camera animation runs.
     std::string Target() override
     {
-        BOARD* board = m_canvas.m_boardAdapter.GetBoard();
+        const BOARD* board = m_canvas.m_boardAdapter.GetBoard();
         if( !board || m_canvas.IsReloadRequestPending() || m_canvas.m_camera_is_moving )
             return {};
         return DocumentId() + "/" + std::to_string( m_canvas.GetProjectionMode() );
@@ -35,7 +35,7 @@ public:
 
     std::string DocumentId() override
     {
-        BOARD* board = m_canvas.m_boardAdapter.GetBoard();
+        const BOARD* board = m_canvas.m_boardAdapter.GetBoard();
         return board ? "board/" + std::to_string( reinterpret_cast<std::uintptr_t>( board ) ) : "";
     }
 
