@@ -60,6 +60,10 @@
 #include <widgets/wx_busy_indicator.h>
 #include <zone.h>
 
+#ifdef KICAD_OPENAXIS
+#include <openaxis/kicad_openaxis.h>
+#endif
+
 
 /**
  * Flag to enable 3D canvas debug tracing.
