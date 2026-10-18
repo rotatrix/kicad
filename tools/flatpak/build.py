@@ -24,6 +24,10 @@ def output(*args):
 
 def adapt(manifest, source_url, source_sha, sdk_sha):
     """Retain upstream dependencies, permissions, extensions and startup wrappers."""
+    # Builder < 1.4.3 leaves Meson's libdir default as lib64 in this SDK.
+    # The upstream recipe links /app/lib/libGLU.so and cleans /lib64, so set
+    # the dependency install directory explicitly on every builder version.
+    manifest.setdefault("build-options", {})["libdir"] = "/app/lib"
     module = next(m for m in manifest["modules"] if isinstance(m, dict) and m.get("name") == "kicad")
     source = next(s for s in module["sources"] if s.get("dest") == "kicad-git")
     source.clear()

@@ -25,6 +25,11 @@ python3 tools/flatpak/build.py package-smoke --source-sha "$sha"
 `deps` stops before the OpenAxis regression module or compiling KiCad, allowing dependency preparation while source
 work continues. All stages reuse `build-flatpak/`; cache `build-flatpak/state/`
 in CI. `--jobs` defaults to 2. `--cache` selects an independent build tree.
+The adapter explicitly sets the dependency library directory to `/app/lib`.
+Older Flatpak-builder versions otherwise let Meson select `/app/lib64` in this
+SDK, conflicting with upstream's GLU link path and `/lib64` cleanup. Changing
+this option invalidates affected dependency cache entries; do not reuse the old
+library layout by copying libraries or adding symlinks.
 `--source-url` can point at a local Git checkout for committed local testing.
 Uncommitted application edits are never silently included. The SDK is downloaded
 by Flatpak before the network-isolated compile stage. Do not run stages
