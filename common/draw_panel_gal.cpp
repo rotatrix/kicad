@@ -410,10 +410,13 @@ bool EDA_DRAW_PANEL_GAL::DoRePaint( bool aAllowSkip )
                     m_gal->ClearScreen();
                 }
 
+                m_view->ClearTargets();
 #ifdef KICAD_OPENAXIS
+                // Clearing a main target also marks the overlay dirty. Capture
+                // this after ClearTargets so diagnostics return whenever their
+                // buffer is cleared, including ordinary canvas redraws.
                 const bool redrawDiagnostics = m_view->IsTargetDirty( KIGFX::TARGET_OVERLAY );
 #endif
-                m_view->ClearTargets();
 
                 // Grid has to be redrawn only when the NONCACHED target is redrawn
                 if( m_view->IsTargetDirty( KIGFX::TARGET_NONCACHED ) )
