@@ -47,12 +47,5 @@ endif()
 add_test(NAME openaxis_wx_scheduler COMMAND openaxis_scheduler_checks)
 set_tests_properties(openaxis_native_camera openaxis_wx_scheduler PROPERTIES TIMEOUT 60)
 
-if(MSVC AND TARGET kicommon)
-    # Copy runtime DLLs of imported dependencies next to the full-tree checks.
-    foreach(check IN ITEMS openaxis_camera_checks openaxis_scheduler_checks)
-        add_custom_command(TARGET ${check} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_RUNTIME_DLLS:${check}> $<TARGET_FILE_DIR:${check}>
-            COMMAND_EXPAND_LISTS)
-    endforeach()
-endif()
+# The upstream Windows vcpkg toolchain deploys runtime DLLs via applocal.ps1.
+# wxWidgets is linked through library paths, so TARGET_RUNTIME_DLLS can be empty.
