@@ -38,6 +38,12 @@ add_subdirectory( io/pads )
 set( KICAD_VERSION_EXTRA "" CACHE STRING
     "User defined configuration string to append to KiCad version." )
 
+# Planned fork preview, embedded before tagging and shared by every platform.
+# Preserve explicit packager overrides and upstream's numeric application identity.
+if( NOT KICAD_VERSION_EXTRA )
+    set( KICAD_VERSION_EXTRA "rotatrix.1-beta.1" )
+endif()
+
 # Generate version header file.
 add_custom_target(
     version_header ALL
