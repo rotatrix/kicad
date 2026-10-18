@@ -1,0 +1,242 @@
+name: Build KiCad
+run-name: KiCad ${{ inputs.source-sha }} (${{ inputs.platform }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      source-sha:
+        description: Full source SHA at the selected work-branch revision
+        required: true
+        type: string
+      platform:
+        description: Platforms to build
+        type: choice
+        default: all
+        options: [all, windows, linux, macos]
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: kicad-${{ inputs.source-sha }}-${{ inputs.platform }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Windows x64
+    if: inputs.platform == 'all' || inputs.platform == 'windows'
+    runs-on: windows-2022
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify selected source
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ inputs.source-sha }}
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$GITHUB_SHA" = "$SOURCE_SHA"
+      - name: Cache compiled dependencies
+        id: dependency-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/AppData/Local/vcpkg/archives
+          key: kicad-openaxis-v143-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}-${{ github.run_id }}
+          restore-keys: kicad-openaxis-v143-${{ runner.os }}-
+      - name: Configure
+        run: ./tools/build-openaxis-windows.ps1 -Stage Configure -BuilderPath C:/kb -Jobs 4
+      - name: Regression checks
+        run: ./tools/build-openaxis-windows.ps1 -Stage Check -BuilderPath C:/kb -Jobs 4
+      - name: Build and install
+        run: ./tools/build-openaxis-windows.ps1 -Stage Build -BuilderPath C:/kb -Jobs 4
+      - name: Package with official KiCad NSIS scripts
+        run: ./tools/build-openaxis-windows.ps1 -Stage Package -BuilderPath C:/kb
+      - name: Stage installer
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          $installers = @(Get-ChildItem C:/kb/.out -Filter 'rotatrix-kicad-openaxis-*.exe')
+          if ($installers.Count -ne 1) { throw 'Expected one installer' }
+          Copy-Item $installers[0].FullName "artifacts/KiCad-windows-x64-$env:GITHUB_SHA.exe"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          path: artifacts/*.exe
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - name: Save dependency progress even after a failed build
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/AppData/Local/vcpkg/archives
+          key: ${{ steps.dependency-cache.outputs.cache-primary-key }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: windows-build-logs-${{ github.sha }}
+          retention-days: 14
+          path: |
+            build/x64-windows-Release/CMakeFiles/CMakeConfigureLog.yaml
+            build/x64-windows-Release/vcpkg-manifest-install.log
+            build/x64-windows-Release/Testing/Temporary/LastTest.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: windows-dependency-logs-${{ github.sha }}
+          retention-days: 14
+          path: C:/kb/vcpkg/buildtrees/**/*.log
+
+  linux:
+    name: Linux x64
+    if: inputs.platform == 'all' || inputs.platform == 'linux'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify selected source
+        env:
+          SOURCE_SHA: ${{ inputs.source-sha }}
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$GITHUB_SHA" = "$SOURCE_SHA"
+      - name: Install upstream Flatpak environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder git git-lfs python3 xvfb xauth ostree
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --assumeyes flathub org.gnome.Sdk//50
+      - uses: actions/cache/restore@v4
+        id: linux-deps
+        with:
+          path: build-flatpak/state
+          key: kicad-flatpak-x86_64-gnome50-279821a1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: kicad-flatpak-x86_64-gnome50-279821a1-
+      - name: Build with upstream dependencies and OpenAxis checks
+        run: xvfb-run -a python3 tools/flatpak/build.py build --source-sha "$GITHUB_SHA" --jobs 2
+      - name: Smoke test and export native package
+        run: |
+          python3 tools/flatpak/build.py smoke --source-sha "$GITHUB_SHA"
+          python3 tools/flatpak/build.py bundle --source-sha "$GITHUB_SHA"
+          python3 tools/flatpak/build.py package-smoke --source-sha "$GITHUB_SHA"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          path: build-flatpak/artifacts/*.flatpak
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: build-flatpak/state
+          key: ${{ steps.linux-deps.outputs.cache-primary-key }}
+
+  macos:
+    name: macOS ${{ matrix.arch }}
+    if: inputs.platform == 'all' || inputs.platform == 'macos'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    env:
+      ARCH: ${{ matrix.arch }}
+      JOBS: '3'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify selected source and architecture
+        env:
+          SOURCE_SHA: ${{ inputs.source-sha }}
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$GITHUB_SHA" = "$SOURCE_SHA"
+          test "$(uname -m)" = "$ARCH"
+      - name: Prepare official builder environment
+        run: |
+          git clone https://gitlab.com/kicad/packaging/kicad-mac-builder.git build-tools/mac-builder
+          git -C build-tools/mac-builder checkout --detach 370400dc2e5cbfcd20b762c02f45730755516e87
+          source build-tools/mac-builder/ci/src/brew_deps.sh
+          packages=()
+          for package in "${BREW_DEPS[@]}"; do
+            case "$package" in
+              cmake) ;;
+              openssl) packages+=(openssl@3) ;;
+              *) packages+=("$package") ;;
+            esac
+          done
+          HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install "${packages[@]}" swig
+          "$(brew --prefix python@3.14)/bin/python3.14" -m venv build-tools/ci-tools
+          build-tools/ci-tools/bin/python -m pip install cmake==3.31.6
+          echo "$GITHUB_WORKSPACE/build-tools/ci-tools/bin" >> "$GITHUB_PATH"
+      - name: Identify compatible dependency cache
+        id: mac-environment
+        run: |
+          fingerprint=$( { printf '%s\n' "$GITHUB_WORKSPACE" "$ImageVersion"; xcodebuild -version; brew list --versions; } | shasum -a 256 | cut -d' ' -f1)
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@v4
+        id: mac-deps
+        with:
+          path: |
+            build-tools/mac-builder/build-${{ matrix.arch }}-wx3.2
+            build-tools/wxpython-4.2.5-${{ matrix.arch }}
+            build-tools/python-build-${{ matrix.arch }}
+            build-tools/python-${{ matrix.arch }}
+          key: kicad-macos15-${{ matrix.arch }}-370400dc-wx325-${{ steps.mac-environment.outputs.fingerprint }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: kicad-macos15-${{ matrix.arch }}-370400dc-wx325-${{ steps.mac-environment.outputs.fingerprint }}-
+      - name: Build dependencies with wxPython
+        run: bash tools/build-openaxis-macos.sh deps "$ARCH"
+      - name: Configure native application
+        run: bash tools/build-openaxis-macos.sh configure "$ARCH"
+      - name: Regression checks and full application
+        run: bash tools/build-openaxis-macos.sh build "$ARCH"
+      - name: Package and validate extracted application
+        run: bash tools/build-openaxis-macos.sh package "$ARCH"
+      - name: Attest signing input
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661
+        with:
+          subject-path: artifacts/macos-app-${{ matrix.arch }}-${{ github.sha }}.tar.gz
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          path: artifacts/macos-app-${{ matrix.arch }}-${{ github.sha }}.tar.gz
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            build-tools/mac-builder/build-${{ matrix.arch }}-wx3.2
+            build-tools/wxpython-4.2.5-${{ matrix.arch }}
+            build-tools/python-build-${{ matrix.arch }}
+            build-tools/python-${{ matrix.arch }}
+          key: ${{ steps.mac-deps.outputs.cache-primary-key }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: macos-${{ matrix.arch }}-logs-${{ github.sha }}
+          retention-days: 14
+          path: |
+            build/macos-${{ matrix.arch }}/CMakeFiles/CMakeConfigureLog.yaml
+            build/macos-${{ matrix.arch }}/Testing/Temporary/LastTest.log
+            build-tools/logs/*.log

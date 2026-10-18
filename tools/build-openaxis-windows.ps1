@@ -66,10 +66,12 @@ if ($oaStage -in @('Check', 'Build', 'All')) {
         & cmake --build $oaBuild --parallel $oaJobs
     }
     if ($LASTEXITCODE) { throw 'KiCad build failed' }
-    $env:PATH = "$oaBuild/vcpkg_installed/x64-windows/bin;" + $env:PATH
-    $oaCtest = Join-Path (Split-Path (Get-Command cmake).Definition -Parent) 'ctest.exe'
-    & $oaCtest --test-dir $oaBuild -R 'openaxis_(native_camera|wx_scheduler)' --output-on-failure --no-tests=error
-    if ($LASTEXITCODE) { throw 'OpenAxis regression checks failed' }
+    if ($oaStage -in @('Check', 'All')) {
+        $env:PATH = "$oaBuild/vcpkg_installed/x64-windows/bin;" + $env:PATH
+        $oaCtest = Join-Path (Split-Path (Get-Command cmake).Definition -Parent) 'ctest.exe'
+        & $oaCtest --test-dir $oaBuild -R 'openaxis_(native_camera|wx_scheduler)' --output-on-failure --no-tests=error
+        if ($LASTEXITCODE) { throw 'OpenAxis regression checks failed' }
+    }
     if ($oaStage -ne 'Check') {
         & cmake --install $oaBuild
         if ($LASTEXITCODE) { throw 'KiCad install failed' }

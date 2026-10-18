@@ -1,101 +1,109 @@
-# OpenAxis navigation in the Rotatrix KiCad fork
+# OpenAxis navigation
 
-`rotatrix/work/10.0.6` is a development branch based on the exact upstream `10.0.6` tag. OpenAxis is optional, enabled with
-`-DKICAD_OPENAXIS=ON`. Builds fetch SDK release `cpp/v1.0.0-rc.1`, pinned to
-`acc4da095cde6747556245b4b6c110c16b968b6b`. For SDK development, set
-`-DOPENAXIS_SOURCE_DIR=C:/path/to/openaxis`.
+This unofficial KiCad build adds optional OpenAxis navigation. It preserves KiCad's
+application identity, preferences, mouse controls and 3Dconnexion support.
+Enable it at build time with `-DKICAD_OPENAXIS=ON`.
 
-The integration follows the local PrusaSlicer `backport-2.9.6` adapter and wx
-scheduler pattern. The SDK handles transport, reconnects, gesture policy and
-native-input reconciliation. No device mappings live in KiCad.
+## Navigation and diagnostics
 
-## Navigation
+Start Rotatrix and open KiCad. OpenAxis connects automatically and follows the
+foreground editor. One service in `kicommon` owns the connection for every canvas
+in the process; separate KiCad processes have separate connections.
 
-Start Rotatrix, then open a board's 3D viewer, schematic editor or PCB editor.
-Connections advertise `app.kicad`, the relevant workspace and `navigation`.
-The 3D viewer advertises `viewspace.3d`; schematic and PCB canvases advertise
-`viewspace.2d`, allowing the server to select fixed-orientation pan/zoom.
-Default server bindings can be customized in Rotatrix.
+- The board 3D viewer supports orbit, pan and zoom in both projections, with
+  surface picks, scene and selection bounds. A green disc with a black rim shows
+  the pivot chosen by Rotatrix.
+- Schematic, PCB, symbol, footprint, Gerber and drawing-sheet canvases support
+  fixed-orientation 2D pan and zoom, including symbol and footprint viewers.
+- **View > Show OpenAxis Diagnostics** draws connection status, query facts and
+  camera evidence directly in the viewport. It is shared by windows in the
+  process, starts off, and supports KiCad's usual hotkey configuration. Normal
+  pivots remain visible independently of diagnostics.
 
-The viewer supplies perspective or orthographic camera poses, board bounds,
-cursor position and world orientation. It uses KiCad's existing 3D mouse pivot
-marker. Surface picking and selection bounds are currently unavailable; server
-pivot fallback applies. The 2D adapter maps KiCad's downward Y axis to a
-right-handed Y-up camera, including mirrored PCB views. Both adapters return
-the realized native pose after zoom and position constraints.
+Configure bindings and navigation policy in Rotatrix. SDK session logs remain
+independent of overlay visibility. Files begin with `kicad-` in:
 
-UI-thread idle events reconcile native mouse changes and publish focus. SDK
-callbacks use wx deferred dispatch and one-shot deadline timers. No repeating
-integration timer is used. Before every dispatch, focus and context are checked;
-modal dialogs, inactive windows, document replacement, resize and DPI changes
-cancel obsolete gestures. Closing a canvas stops its connection before its
-rendering resources are destroyed. SDK session logs use the `kicad` identity.
+| Platform | Directory |
+| --- | --- |
+| Windows | `%LOCALAPPDATA%/Rotatrix/logs` |
+| macOS | `~/Library/Application Support/Rotatrix/logs` |
+| Linux | `$XDG_DATA_HOME/Rotatrix/logs`, default `~/.local/share/Rotatrix/logs` |
 
-## Windows x64 build and packaging
+`ROTATRIX_LOG_DIR` overrides the directory. Flatpak uses its application data directory.
 
-Install Visual Studio 2022 with Desktop development with C++ and CMake tools.
-Run from Windows PowerShell 5.1:
+### Scope
+
+Free camera and object manipulation are excluded. Model-preview dialogs use a
+separate camera and are not navigated. Selection-filtered picks are deferred;
+ordinary surface picks and selection bounds are available. The 2D pivot is not
+drawn. Raytracing supplies no scene depth buffer, so its pivot is opaque; OpenGL
+shows occluded fragments faintly. Overlays do not enter selection, extents, undo
+or saved documents.
+
+Focus, modal dialogs, document replacement, resize and DPI changes invalidate
+obsolete navigation. Native mouse changes are reconciled on UI idle and before
+scheduled SDK work. The last canvas stops the shared service before destroying
+its resources. Automated tests do not establish physical-device or visual acceptance.
+
+## Build and test
+
+The source baseline is upstream `10.0.6`. OpenAxis is pinned to public release
+`cpp/v1.0.0-rc.1`, commit `acc4da095cde6747556245b4b6c110c16b968b6b`.
+Set `OPENAXIS_SOURCE_DIR` to a local SDK checkout for development.
+
+On Windows, install Visual Studio 2022 and run Windows PowerShell 5.1:
 
 ```powershell
 ./tools/build-openaxis-windows.ps1 -Stage All
 ```
 
-Stages `Configure`, `Build` and `Package` can be run separately. `-BuilderPath`
-reuses a dedicated builder checkout, `-SdkPath` overrides the SDK, and `-Jobs`
-controls build concurrency. The wrapper pins KiCad's official Windows builder
-to `81d736abb12384f85d4453553246d43002d0ff45` and uses its pinned vcpkg toolchain,
-environment setup, runtime dependency staging, Python bundling and NSIS scripts.
-It builds this checkout directly without the builder's source-reset operation.
+Stages `Configure`, `Check`, `Build` and `Package` are separately invocable.
+`-BuilderPath` reuses a builder checkout, `-SdkPath` overrides the SDK, and `-Jobs`
+controls concurrency. The official Windows builder is pinned to
+`81d736abb12384f85d4453553246d43002d0ff45`; its vcpkg environment, Python/runtime
+bundling and NSIS scripts are reused without resetting this checkout. The unsigned
+x64 Lite installer is under the builder's `.out`. Install content libraries using
+KiCad's library facilities.
 
-The output is an unsigned x64 Lite installer under the builder's `.out` folder.
-Lite omits symbol, footprint and 3D model libraries; use KiCad's online library
-installation facilities. The installed application tree is also under `.out`.
-The initial dependency build may take several hours if KiCad's public binary
-cache has no matching packages. Subsequent builds reuse the local vcpkg cache.
+The platform scripts in `tools/` document macOS and Linux prerequisites and stages.
+They reuse pinned upstream packaging recipes. macOS produces `KiCad.app` in one
+`.tar.gz`; Linux preserves the upstream Flatpak application ID and runtime.
+Installing that Flatpak may replace an upstream installation of the same ID;
+native preferences use a separate location.
 
-GitHub Actions runs the same wrapper on `windows-2022`, caches dependencies,
-uploads the installer and SHA-256 hashes as temporary test artifacts. Builds run on rotatrix/** pushes and PRs targeting rotatrix/*; artifact names include the source SHA and binaries expire after 14 days. Work-branch CI does not create releases. Failed builds upload their logs.
+`openaxis_native_camera` and `openaxis_wx_scheduler` cover camera round trips,
+world orientation, mirrored 2D views, zoom constraints, native-input continuation,
+deferred dispatch and shutdown. Standalone checks build from `qa/openaxis` with
+`OPENAXIS_SOURCE_DIR` and a wxWidgets development installation. Full builds also
+run package startup checks. Exercise device movement, pivots, diagnostics, native
+mouse continuation, editor switching and cleanup interactively on each target OS.
 
-The separate Linux and macOS workflow runs concurrently with Windows. Linux
-uses KiCad's Fedora 41 CI image and uploads a staged x64 installation archive
-that requires the distribution's shared dependencies. macOS builds for Apple
-Silicon with the official macOS builder pinned to
-`370400dc2e5cbfcd20b762c02f45730755516e87`, then uploads an ad-hoc signed app
-bundle. These are test artifacts, without bundled content libraries; the macOS
-bundle is not notarized. Both jobs run the OpenAxis regressions and a CLI smoke
-test before uploading binaries.
-The macOS test build disables optional wxPython GUI scripting because the
-selected dependency builder supplies native wxWidgets without wxPython bindings.
+## CI and release preparation
 
-## Licensing and provenance
+Develop and contribute on `rotatrix/work/10.0.6`. Pushes, PR updates and tags do
+not start builds automatically. Manually dispatch **Build KiCad**, supplying the
+full source SHA at the selected work-branch revision; the workflow verifies it.
+The full matrix is Windows x64, Linux x64, macOS arm64 and macOS x86_64.
+SHA-named package artifacts expire after 14 days; logs remain separate.
 
-OpenAxis's GPL-3.0-only license option applies to these combined binaries.
-Existing KiCad source retains its notices. The SDK's complete license is
-installed alongside this document. The exact source commit accompanies CI
-artifacts; the SDK and builder commits are pinned in this repository.
+After automated package checks pass, create an immutable
+`10.0.6-rotatrix.N[-beta.M]` tag at that commit. **Prepare release draft** accepts
+that tag and the successful full-platform build run ID. It checks the selection,
+requests central macOS signing/notarization and assembles the existing Windows
+and Linux packages, signed Mac packages and `SHA256SUMS` into a draft. It does not
+rebuild or publish. Test those exact final packages before separately publishing.
+Windows signing is not currently available from the central service.
 
-## Native acceptance
+macOS runtime exceptions are declared by bundle ID in
+`signing/macos-entitlements.plist`. Only the five GUI applications that load the
+external 3Dconnexion framework request disabled library validation. Utilities and
+bundled libraries receive no such exception. The signer must support source-owned
+bundle maps before preparing a draft; this does not require a KiCad-specific
+central entitlement profile.
 
-The normal Windows build runs `openaxis_native_camera` and
-`openaxis_wx_scheduler` before installation.
-These regression checks use KiCad's actual CAMERA and TRACK_BALL classes to
-verify camera round trips, native mouse continuation, orthographic zoom limits,
-reversal at a limit and all four 2D mirroring combinations. They can also be
-built separately with `cmake -S qa/openaxis -B build/openaxis-checks`, supplying
-`OPENAXIS_SOURCE_DIR` and a wxWidgets installation.
-The scheduler checks cover cross-thread dispatch, deadline ordering and shutdown
-with queued callbacks. A packaged `kicad-cli version` smoke test runs after NSIS.
+## Licensing and source
 
-Verify orbit, pan and zoom in both viewer projections; switch back to the mouse
-after SDK motion and confirm continuity. Check minimum/maximum zoom, resize and
-DPI changes, document reload, view animations, foreground-window changes, modal
-dialogs, reconnect, and closing the application during a gesture. In schematic
-and PCB editors, check cursor-anchored zoom, pan, sheet switching, mirrored PCB
-views and switching between multiple editor windows. Confirm that 2D views never
-tilt or roll and that only the foreground window accepts navigation.
-
-## Fork lifecycle
-
-Development stays on `rotatrix/work/10.0.6` until accepted. Then organize the downstream patches and create `rotatrix/10.0.6`, making it the default branch. Until then the work branch is the temporary default; the legacy `rotatrix/stable` history is preserved but superseded.
-
-Maintained history is append-only. Contributors target the maintained version branch. Future ports start from the exact upstream tag on a new work branch. Final immutable release tags use `10.0.6-rotatrix.N`; N resets for each upstream version. Permanent test releases use a beta suffix and GitHub prerelease status. Release automation must trigger on `*-rotatrix.*` and provide upstream-comparable packaging/signing before it is enabled. Current unsigned Lite/test artifacts are not final releases.
+OpenAxis's GPL-3.0-only option applies to combined binaries; existing KiCad source
+retains its notices. SDK and IXWebSocket licenses are installed with this document.
+Application source is retained at immutable release tags. Dependency versions,
+source URLs and patches remain in Git and the pinned platform recipes.

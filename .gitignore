@@ -161,3 +161,8 @@ qa/data/**/*.spice
 # Local OpenAxis build tools and logs
 /build-tools/
 /*-openaxis.log
+
+# Local distributable package checks
+/artifacts/
+/build-flatpak/
+/promotion/
