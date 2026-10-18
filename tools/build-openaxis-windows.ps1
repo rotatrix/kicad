@@ -22,6 +22,19 @@ if (!(Test-Path "$oaBuilder/build.ps1")) {
 }
 if ((git -C $oaBuilder rev-parse HEAD) -ne $oaBuilderCommit) { throw 'Unexpected builder revision' }
 if (!(Test-Path "$oaBuilder/.support/nsis-3.11/makensis.exe")) {
+    # The pinned SourceForge mirror can return error pages. Use the official
+    # GitHub release of the identical archive, retaining upstream's checksum.
+    $oaDoxygen = "$oaBuilder/.support/doxygen-1.9.3.windows.x64.bin"
+    if (!(Test-Path "$oaDoxygen/doxygen.exe")) {
+        New-Item -ItemType Directory -Force "$oaBuilder/.downloads" | Out-Null
+        $oaDoxygenZip = "$oaBuilder/.downloads/doxygen-1.9.3.windows.x64.bin.zip"
+        Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/doxygen/doxygen/releases/download/Release_1_9_3/doxygen-1.9.3.windows.x64.bin.zip' -OutFile $oaDoxygenZip
+        if ((Get-FileHash -Algorithm SHA256 $oaDoxygenZip).Hash -ne '575B1A27CB907675D24F2C348A4D95D9CDD6A2000F6A8D8BFC4C3A20B2E120F5') {
+            throw 'Doxygen archive checksum mismatch'
+        }
+        Expand-Archive -LiteralPath $oaDoxygenZip -DestinationPath $oaDoxygen -Force
+        if (!(Test-Path "$oaDoxygen/doxygen.exe")) { throw 'Doxygen archive is missing doxygen.exe' }
+    }
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$oaBuilder/build.ps1" -Init
     if ($LASTEXITCODE) { throw 'Builder initialization failed' }
 }
