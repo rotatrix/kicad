@@ -147,6 +147,7 @@ PYTHON
     # Python extension modules can load dependencies not used by the KiCad executable.
     # Reuse upstream collection/relocation and inside-out signing after all resources.
     cat > "$cache/finish-bundle-$arch.cmake" <<CMAKE
+cmake_minimum_required(VERSION 3.24)
 set(OSX_BUNDLE_INSTALL_LIB_DIR "$app/Contents/Frameworks")
 include("$root/cmake/InstallSteps/InstallMacOS.cmake")
 file(GLOB_RECURSE python_modules "$app/Contents/Frameworks/Python.framework/*.so")
@@ -154,11 +155,38 @@ foreach(module \${python_modules})
     install_runtime_deps("" "\${module}" "")
 endforeach()
 include("$root/cmake/InstallSteps/RefixupMacOS.cmake")
-refix_kicad_bundle("$app")
+# The native install already fixed executable rpaths; that operation is not idempotent.
+file(GLOB_RECURSE items "$app/*.dylib" "$app/*.so" "$app/*.kiface")
+foreach(item \${items})
+    refix_prereqs("\${item}")
+endforeach()
 CMAKE
     cmake -P "$cache/finish-bundle-$arch.cmake"
+    # Homebrew Python uses absolute framework IDs which upstream's suffix-based
+    # relocation does not cover. Keep its runtime inside the app's Frameworks.
+    "$python" - "$app" "$pyver" <<'PYTHON'
+from pathlib import Path
+import subprocess,sys
+app=Path(sys.argv[1]); version=sys.argv[2]
+framework=app/'Contents/Frameworks/Python.framework'
+relative=f'@rpath/Python.framework/Versions/{version}/Python'
+subprocess.run(['install_name_tool','-id',relative,str(framework/f'Versions/{version}/Python')],check=True)
+(app/'Contents/Frameworks/Python').unlink(missing_ok=True)
+for path in app.rglob('*'):
+    if path.is_symlink() or not path.is_file():
+        continue
+    with path.open('rb') as stream:
+        magic=stream.read(4)
+    if magic not in (b'\xcf\xfa\xed\xfe',b'\xfe\xed\xfa\xcf',b'\xca\xfe\xba\xbe',b'\xbe\xba\xfe\xca'):
+        continue
+    for line in subprocess.check_output(['otool','-L',str(path)],text=True).splitlines()[1:]:
+        old=line.strip().split(' (',1)[0]
+        if old.startswith('/') and old.endswith(f'/Python.framework/Versions/{version}/Python'):
+            subprocess.run(['install_name_tool','-change',old,relative,str(path)],check=True)
+PYTHON
     "$venv/bin/wrangle-bundle" --fix --python-version "$pyver" "$app"
     cat > "$cache/sign-bundle-$arch.cmake" <<CMAKE
+cmake_minimum_required(VERSION 3.24)
 include("$root/cmake/InstallSteps/SignMacOS.cmake")
 sign_kicad_bundle("$app" "-" OFF OFF "")
 verify_signing("$app")
