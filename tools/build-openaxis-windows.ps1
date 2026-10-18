@@ -91,7 +91,23 @@ if ($oaStage -in @('Package', 'All')) {
     # Prefix distinguishes this GPLv3 OpenAxis fork from official KiCad builds.
     $buildConfig.output_prefix = 'rotatrix-kicad-openaxis-'
     Start-Prepare-Package -arch x64 -buildType Release -lite $true
+    # The upstream installer includes bin recursively, but only selected doc folders.
+    # Keep notices in its existing payload without changing the NSIS template.
+    $oaLicenses = Join-Path $oaOutput 'bin/licenses'
+    New-Item -ItemType Directory -Force $oaLicenses | Out-Null
+    Copy-Item "$oaSource/LICENSE*" -Destination $oaLicenses
+    Copy-Item "$oaSource/vcpkg.json", "$oaSource/vcpkg-configuration.json" -Destination $oaLicenses
+    Copy-Item "$oaOutput/share/doc/kicad/openaxis" -Destination $oaLicenses -Recurse
+    foreach ($oaPort in Get-ChildItem "$oaBuild/vcpkg_installed/x64-windows/share" -Directory) {
+        if (Test-Path (Join-Path $oaPort.FullName 'copyright')) {
+            $oaPortNotices = Join-Path $oaLicenses $oaPort.Name
+            New-Item -ItemType Directory -Force $oaPortNotices | Out-Null
+            Copy-Item (Join-Path $oaPort.FullName 'copyright') -Destination $oaPortNotices
+        }
+    }
     Start-Package-Nsis -arch x64 -buildType Release -lite $true -postCleanup $false -sign $false
     & "$oaOutput/bin/kicad-cli.exe" version
     if ($LASTEXITCODE) { throw 'Packaged KiCad runtime smoke test failed' }
+    & "$oaOutput/bin/python.exe" -I -c 'import wx, pcbnew, ssl, sqlite3, ctypes; print(wx.version()); print(pcbnew.GetBuildVersion())'
+    if ($LASTEXITCODE) { throw 'Packaged Python runtime smoke test failed' }
 }

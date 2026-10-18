@@ -66,6 +66,8 @@ jobs:
           $installers = @(Get-ChildItem C:/kb/.out -Filter 'rotatrix-kicad-openaxis-*.exe')
           if ($installers.Count -ne 1) { throw 'Expected one installer' }
           Copy-Item $installers[0].FullName "artifacts/KiCad-windows-x64-$env:GITHUB_SHA.exe"
+      - name: Validate extracted installer payload
+        run: ./tools/test-windows-package.ps1 -Installer "artifacts/KiCad-windows-x64-$env:GITHUB_SHA.exe"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           path: artifacts/*.exe
