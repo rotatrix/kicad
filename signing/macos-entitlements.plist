@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>bundles</key>
+	<dict>
+		<key>org.kicad.eeschema</key>
+		<dict>
+			<key>com.apple.security.cs.disable-library-validation</key>
+			<true/>
+		</dict>
+		<key>org.kicad.gerbview</key>
+		<dict>
+			<key>com.apple.security.cs.disable-library-validation</key>
+			<true/>
+		</dict>
+		<key>org.kicad.kicad</key>
+		<dict>
+			<key>com.apple.security.cs.disable-library-validation</key>
+			<true/>
+		</dict>
+		<key>org.kicad.pcbnew</key>
+		<dict>
+			<key>com.apple.security.cs.disable-library-validation</key>
+			<true/>
+		</dict>
+		<key>org.kicad.pl_editor</key>
+		<dict>
+			<key>com.apple.security.cs.disable-library-validation</key>
+			<true/>
+		</dict>
+	</dict>
+</dict>
+</plist>
