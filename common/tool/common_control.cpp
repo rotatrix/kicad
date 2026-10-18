@@ -26,6 +26,10 @@
 // collision with wx headers and curl.h defs
 #include <kicad_curl/kicad_curl_easy.h>
 
+#ifdef KICAD_OPENAXIS
+#include <openaxis/kicad_openaxis.h>
+#endif
+#include <tool/action_manager.h>
 #include <bitmaps.h>
 #include <build_version.h>
 #include <common.h>     // for SearchHelpFileFullPath
@@ -72,6 +76,11 @@ wxString COMMON_CONTROL::m_bugReportTemplate = wxS(
 void COMMON_CONTROL::Reset( RESET_REASON aReason )
 {
     m_frame = getEditFrame<EDA_BASE_FRAME>();
+#ifdef KICAD_OPENAXIS
+    m_toolMgr->GetActionManager()->SetConditions( ACTIONS::showOpenAxisDiagnostics,
+            ACTION_CONDITIONS().Check( []( const SELECTION& )
+                                      { return KIOPENAXIS::DiagnosticsVisible(); } ) );
+#endif
 }
 
 
@@ -446,8 +455,18 @@ int COMMON_CONTROL::ReloadPlugins( const TOOL_EVENT& aEvent )
 }
 
 
+int COMMON_CONTROL::ShowOpenAxisDiagnostics( const TOOL_EVENT& aEvent )
+{
+#ifdef KICAD_OPENAXIS
+    KIOPENAXIS::SetDiagnosticsVisible( !KIOPENAXIS::DiagnosticsVisible() );
+#endif
+    return 0;
+}
+
+
 void COMMON_CONTROL::setTransitions()
 {
+    Go( &COMMON_CONTROL::ShowOpenAxisDiagnostics, ACTIONS::showOpenAxisDiagnostics.MakeEvent() );
     Go( &COMMON_CONTROL::Quit,               ACTIONS::quit.MakeEvent() );
 
     Go( &COMMON_CONTROL::OpenPreferences,    ACTIONS::openPreferences.MakeEvent() );

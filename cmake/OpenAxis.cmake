@@ -22,11 +22,12 @@ if(KICAD_OPENAXIS)
     endif()
     set_target_properties(openaxis openaxis_ixwebsocket PROPERTIES POSITION_INDEPENDENT_CODE ON)
     if(MSVC)
-        # KiCad exports nlohmann::json template instances from kicommon. Inform
-        # SDK translation units of those imports instead of defining duplicates.
+        # The SDK is linked into kicommon, which exports KiCad's nlohmann::json
+        # template instances. Compile SDK sources as kicommon sources so they
+        # see the same exported instantiations.
         target_include_directories(openaxis PRIVATE "${CMAKE_SOURCE_DIR}/include")
         target_compile_options(openaxis PRIVATE "/FI${CMAKE_SOURCE_DIR}/include/json_common.h")
-        target_link_libraries(openaxis PRIVATE kicommon)
+        target_compile_definitions(openaxis PRIVATE KICOMMON_DLL=1)
     endif()
     add_compile_definitions(KICAD_OPENAXIS)
     install(FILES "${_openaxis_source}/LICENSE" DESTINATION "${KICAD_DOCS}/openaxis")

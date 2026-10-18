@@ -46,6 +46,7 @@
 #include <pad.h> // For PAD_DRILL_POST_MACHINING_MODE
 
 #include <map>
+#include <functional>
 
 typedef std::map< PCB_LAYER_ID, OPENGL_RENDER_LIST* > MAP_OGL_DISP_LISTS;
 typedef std::list<TRIANGLE_DISPLAY_LIST* > LIST_TRIANGLES;
@@ -58,6 +59,10 @@ typedef std::list<TRIANGLE_DISPLAY_LIST* > LIST_TRIANGLES;
 class RENDER_3D_OPENGL : public RENDER_3D_BASE
 {
 public:
+#ifdef KICAD_OPENAXIS
+    // Draw transient navigation overlays before the navigator clears scene depth.
+    std::function<void()> m_openaxisOverlay;
+#endif
     explicit RENDER_3D_OPENGL( EDA_3D_CANVAS* aCanvas, BOARD_ADAPTER& aAdapter, CAMERA& aCamera );
 
     ~RENDER_3D_OPENGL();

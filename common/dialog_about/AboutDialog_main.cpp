@@ -74,6 +74,10 @@ static void buildKicadAboutBanner( EDA_BASE_FRAME* aParent, ABOUT_APP_INFO& aInf
 #endif
             << wxT( " build" );
 
+#ifdef KICAD_OPENAXIS
+    version << wxT( " — Rotatrix (unofficial build)" );
+#endif
+
     aInfo.SetBuildVersion( version );
     aInfo.SetBuildDate( GetBuildDate() );
 

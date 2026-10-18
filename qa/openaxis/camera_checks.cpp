@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <openaxis/camera.h>
-// Compile the shared wx adapter against the pinned SDK API as well.
-#include <openaxis/navigation.h>
+// Compile the canvas interface against the pinned SDK API as well.
+#include <openaxis/kicad_openaxis.h>
 #include <track_ball.h>
 #include <iostream>
 #include <stdexcept>
@@ -22,6 +22,18 @@ int main()
 {
     try
     {
+        // world.orientation.forward must describe the native Front preset,
+        // rather than the camera's initial top-down view of the board.
+        TRACK_BALL frontCamera( { 0, 0, -100 }, { 0, 0, 0 }, PROJECTION_TYPE::PERSPECTIVE );
+        frontCamera.SetCurWindowSize( wxSize( 1280, 720 ) );
+        frontCamera.SetT0_and_T1_current_T();
+        require( frontCamera.ViewCommand_T1( VIEW3D_TYPE::VIEW3D_FRONT ), "Front preset unavailable" );
+        frontCamera.Interpolate( 1.0f );
+        const auto frontRotation = openaxis::Quat::from_rotvec( Read( frontCamera )->r );
+        require( ( frontRotation.rotate( { 0, 0, -1 } ) - openaxis::Vec3{ 0, 1, 0 } ).length() < 1e-4,
+                 "Front preset differs from reported world forward +Y" );
+        require( ( frontRotation.rotate( { 0, 1, 0 } ) - openaxis::Vec3{ 0, 0, 1 } ).length() < 1e-4,
+                 "Front preset differs from reported world up +Z" );
         for( bool mirrorX : { false, true } )
         for( bool mirrorY : { false, true } )
         {

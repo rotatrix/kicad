@@ -40,7 +40,7 @@ class wxStatusBar;
 class BOARD;
 class RENDER_3D_RAYTRACE_GL;
 class RENDER_3D_OPENGL;
-class OPENAXIS_NAVIGATION;
+class OPENAXIS_CANVAS;
 
 
 #define EDA_3D_CANVAS_ID (wxID_HIGHEST + 1321)
@@ -225,8 +225,12 @@ public:
 
 private:
 #ifdef KICAD_OPENAXIS
+    friend class EDA_3D_OPENAXIS_CANVAS; // eda_3d_canvas_openaxis.cpp
     void InitOpenAxis();
-    std::unique_ptr<OPENAXIS_NAVIGATION> m_openaxis;
+    void ReleaseOpenAxis();
+    void InvalidateOpenAxis();
+    void RenderOpenAxis();
+    std::unique_ptr<OPENAXIS_CANVAS> m_openaxis;
 #endif
     // The wxPaintEvent event. mainly calls DoRePaint()
     void OnPaint( wxPaintEvent& aEvent );

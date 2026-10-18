@@ -135,6 +135,9 @@ void SYMBOL_EDIT_FRAME::doReCreateMenuBar()
     viewMenu->Add( ACTIONS::zoomFitScreen );
     viewMenu->Add( ACTIONS::zoomTool );
     viewMenu->Add( ACTIONS::zoomRedraw );
+#ifdef KICAD_OPENAXIS
+    viewMenu->Add( ACTIONS::showOpenAxisDiagnostics, ACTION_MENU::CHECK );
+#endif
 
     viewMenu->AppendSeparator();
     viewMenu->Add( SCH_ACTIONS::showHiddenPins,    ACTION_MENU::CHECK );

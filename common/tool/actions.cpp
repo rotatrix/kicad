@@ -702,6 +702,13 @@ TOOL_ACTION ACTIONS::excludeMarker( TOOL_ACTION_ARGS()
         .Icon( BITMAPS::marker_exclude ) );
 
 // View Controls
+TOOL_ACTION ACTIONS::showOpenAxisDiagnostics( TOOL_ACTION_ARGS()
+        .Name( "common.Control.showOpenAxisDiagnostics" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Show OpenAxis Diagnostics" ) )
+        .Tooltip( _( "Show OpenAxis navigation evidence in the viewport" ) ) );
+
+
 TOOL_ACTION ACTIONS::zoomRedraw( TOOL_ACTION_ARGS()
         .Name( "common.Control.zoomRedraw" )
         .Scope( AS_GLOBAL )

@@ -130,6 +130,7 @@ public:
 
     // View controls
     static TOOL_ACTION zoomRedraw;
+    static TOOL_ACTION showOpenAxisDiagnostics;
     static TOOL_ACTION zoomIn;
     static TOOL_ACTION zoomOut;
     static TOOL_ACTION zoomInCenter;

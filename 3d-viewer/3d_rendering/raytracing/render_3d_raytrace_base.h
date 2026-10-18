@@ -72,6 +72,13 @@ public:
 
     BOARD_ITEM *IntersectBoardItem( const RAY& aRay );
 
+#ifdef KICAD_OPENAXIS
+    bool HasPickGeometry() const { return m_accelerator != nullptr; }
+    const BBOX_3D& NavigationBounds() const { return m_navigationBounds; }
+    bool PickSurface( const RAY& aRay, SFVEC3F& aPoint, BBOX_3D& aBounds ) const;
+    bool SelectedBounds( BBOX_3D& aBounds ) const;
+#endif
+
 protected:
     virtual void initPbo() = 0;
     virtual void deletePbo() = 0;
@@ -184,6 +191,9 @@ protected:
     BVH_CONTAINER_2D* m_antioutlineBoard2dObjects;
 
     ACCELERATOR_3D* m_accelerator;
+#ifdef KICAD_OPENAXIS
+    BBOX_3D m_navigationBounds;
+#endif
 
     SFVEC4F m_backgroundColorTop;
     SFVEC4F m_backgroundColorBottom;

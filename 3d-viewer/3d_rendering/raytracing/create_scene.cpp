@@ -893,6 +893,14 @@ void RENDER_3D_RAYTRACE_BASE::Reload( REPORTER* aStatusReporter, REPORTER* aWarn
 
     load3DModels( m_objectContainer, aOnlyLoadCopperAndShapes );
 
+#ifdef KICAD_OPENAXIS
+    // Capture once per scene rebuild, before the synthetic raytrace backdrop is
+    // appended. The OpenGL auxiliary scene omits the board body, so include it.
+    m_navigationBounds = m_boardAdapter.GetBBox();
+    if( m_objectContainer.GetBBox().IsInitialized() )
+        m_navigationBounds.Union( m_objectContainer.GetBBox() );
+#endif
+
 #ifdef PRINT_STATISTICS_3D_VIEWER
     int64_t stats_endLoad3DmodelsTime = GetRunningMicroSecs();
 #endif

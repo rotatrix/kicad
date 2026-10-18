@@ -1784,3 +1784,56 @@ BOARD_ITEM* RENDER_3D_RAYTRACE_BASE::IntersectBoardItem( const RAY& aRay )
 
     return nullptr;
 }
+
+#ifdef KICAD_OPENAXIS
+bool RENDER_3D_RAYTRACE_BASE::SelectedBounds( BBOX_3D& aBounds ) const
+{
+    bool found = false;
+    for( const OBJECT_3D* object : m_objectContainer.GetList() )
+    {
+        BOARD_ITEM* item = object->GetBoardItem();
+        if( item && item->IsSelected() )
+        {
+            aBounds.Union( object->GetBBox() );
+            found = true;
+        }
+    }
+    return found;
+}
+
+bool RENDER_3D_RAYTRACE_BASE::PickSurface( const RAY& aRay, SFVEC3F& aPoint,
+                                        BBOX_3D& aBounds ) const
+{
+    HITINFO hit{};
+    hit.m_tHit = std::numeric_limits<float>::infinity();
+    bool found = false;
+    if( m_accelerator )
+        found = m_accelerator->Intersect( aRay, hit );
+
+    // The raytracer's background floor/ceiling is a rendering aid, not board
+    // geometry. If it was first, test actual scene geometry behind it.
+    if( found && hit.pHitObject && hit.pHitObject->GetMaterial() == &m_materials.m_Floor )
+    {
+        hit = {};
+        hit.m_tHit = std::numeric_limits<float>::infinity();
+        found = false;
+        for( const OBJECT_3D* object : m_objectContainer.GetList() )
+            if( object->GetMaterial() != &m_materials.m_Floor )
+                found |= object->Intersect( aRay, hit );
+    }
+
+    if( !found || !hit.pHitObject )
+        return false;
+
+    aPoint = aRay.at( hit.m_tHit );
+    // A component is tessellated into many triangles. Report the whole native
+    // item bounds, not the single triangle that happened to be intersected.
+    BOARD_ITEM* item = hit.pHitObject->GetBoardItem();
+    aBounds = hit.pHitObject->GetBBox();
+    if( item )
+        for( const OBJECT_3D* object : m_objectContainer.GetList() )
+            if( object->GetBoardItem() == item )
+                aBounds.Union( object->GetBBox() );
+    return true;
+}
+#endif

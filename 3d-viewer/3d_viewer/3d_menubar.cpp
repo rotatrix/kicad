@@ -70,6 +70,9 @@ void EDA_3D_VIEWER_FRAME::doReCreateMenuBar()
     viewMenu->Add( ACTIONS::zoomOutCenter );
     viewMenu->Add( ACTIONS::zoomFitScreen );
     viewMenu->Add( ACTIONS::zoomRedraw );
+#ifdef KICAD_OPENAXIS
+    viewMenu->Add( ACTIONS::showOpenAxisDiagnostics, ACTION_MENU::CHECK );
+#endif
 
     // Grid submenu
     ACTION_MENU* gridSubmenu = new ACTION_MENU( false, tool );

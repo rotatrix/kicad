@@ -860,6 +860,11 @@ bool RENDER_3D_OPENGL::Redraw( bool aIsMoving, REPORTER* aStatusReporter,
         glEnable( GL_LIGHTING );
     }
 
+#ifdef KICAD_OPENAXIS
+    if( m_openaxisOverlay )
+        m_openaxisOverlay();
+#endif
+
     // Render 3D arrows
     if( cfg.show_navigator )
         m_spheres_gizmo->render3dSpheresGizmo( m_camera.GetRotationMatrix() );

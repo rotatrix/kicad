@@ -149,5 +149,7 @@ else()
 endif()
 
 if(KICAD_OPENAXIS)
-    target_link_libraries(3d-viewer PRIVATE OpenAxis::openaxis)
+    # The SDK lives in kicommon; the viewer uses only its header-only geometry.
+    target_sources(3d-viewer PRIVATE 3d_canvas/eda_3d_canvas_openaxis.cpp)
+    target_include_directories(3d-viewer PRIVATE $<TARGET_PROPERTY:openaxis,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()

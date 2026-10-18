@@ -337,6 +337,11 @@ list( APPEND KICOMMON_SRCS
     navlib_safe_init.cpp
 )
 
+if( KICAD_OPENAXIS )
+    # One OpenAxis connection per process, shared by every editor module.
+    list( APPEND KICOMMON_SRCS openaxis/kicad_openaxis.cpp )
+endif()
+
 if( KICAD_IPC_API )
     set( KICOMMON_SRCS
         ${KICOMMON_SRCS}
@@ -1244,5 +1249,9 @@ add_executable( dsntest EXCLUDE_FROM_ALL dsnlexer.cpp )
 target_link_libraries( dsntest common ${wxWidgets_LIBRARIES} rt )
 
 if(KICAD_OPENAXIS)
-    target_link_libraries(common OpenAxis::openaxis)
+    # The SDK and its state live only in kicommon; editor canvases use its
+    # header-only geometry through include/openaxis/kicad_openaxis.h.
+    target_link_libraries(kicommon OpenAxis::openaxis)
+    target_sources(common PRIVATE openaxis/gal_openaxis_canvas.cpp)
+    target_include_directories(common PRIVATE $<TARGET_PROPERTY:openaxis,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
