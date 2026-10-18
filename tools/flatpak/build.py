@@ -61,6 +61,8 @@ def main():
     parser.add_argument("--source-url", default="https://github.com/rotatrix/kicad.git")
     parser.add_argument("--cache", type=Path, default=Path("build-flatpak"))
     parser.add_argument("--jobs", type=int, default=2)
+    parser.add_argument("--disable-rofiles-fuse", action="store_true",
+                        help="Use Flatpak's non-FUSE cache checkout on hosts that restrict fusermount")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     sha = output("git", "-C", root, "rev-parse", f"{args.source_sha}^{{commit}}")
@@ -75,6 +77,8 @@ def main():
     built_sha = cache / "built-source-sha"
     common = ["flatpak-builder", "--arch=x86_64", f"--state-dir={cache / 'state'}",
               "--ccache", f"--jobs={args.jobs}", "--default-branch=stable"]
+    if args.disable_rofiles_fuse:
+        common.append("--disable-rofiles-fuse")
     if args.stage in ("prepare", "deps", "build"):
         if not recipe.exists():
             run("git", "clone", RECIPE_URL, recipe)

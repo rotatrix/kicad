@@ -31,6 +31,12 @@ by Flatpak before the network-isolated compile stage. Do not run stages
 concurrently against one cache. `--force-clean` recreates only the sandbox app
 directory; the dependency and compiler caches persist.
 
+On hosts where AppArmor or another host policy prevents `fusermount3` from
+accessing the build directory, pass `--disable-rofiles-fuse` to `deps` and `build`.
+This selects Flatpak's supported non-FUSE cache checkout without changing host
+permissions or disabling security policy. Dependency and compiler caches remain
+enabled.
+
 The output is `build-flatpak/artifacts/KiCad-linux-x64-<full-sha>.flatpak`.
 Upload this file directly (without an enclosing ZIP). Keep build logs separate.
 The GNOME 50 SDK is also the runtime, following the pinned upstream recipe.
