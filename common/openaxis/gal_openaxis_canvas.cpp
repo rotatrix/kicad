@@ -131,6 +131,7 @@ public:
         KIGFX::GAL_SCOPED_ATTRS attrs( gal, KIGFX::GAL_SCOPED_ATTRS::ALL_ATTRS );
         const auto target = gal.GetTarget();
         gal.SetTarget( KIGFX::TARGET_OVERLAY );
+        gal.SetLayerDepth( gal.GetMinDepth() );
         gal.SetIsFill( false );
         gal.SetIsStroke( true );
         const double dpi = double( view.GetScreenPixelSize().y )
@@ -176,11 +177,15 @@ public:
                     { 12, 12 }, position, ANGLE_0, false, { 0, 0 }, 0 );
             gal.SetIsFill( true );
             gal.SetIsStroke( false );
+            // OpenGL uses GL_LESS: equal-depth text would be hidden by its
+            // background. Keep the backing rectangle behind the glyph strokes.
+            gal.SetLayerDepth( gal.GetMinDepth() + 1.0 );
             gal.SetFillColor( KIGFX::COLOR4D( 0.03, 0.03, 0.03, 0.85 ) );
             gal.DrawRectangle( VECTOR2D( bounds.GetLeft() - 2, bounds.GetTop() - 2 ),
                                VECTOR2D( bounds.GetRight() + 2, bounds.GetBottom() + 2 ) );
             gal.SetIsStroke( true );
             gal.SetIsFill( false );
+            gal.SetLayerDepth( gal.GetMinDepth() );
             gal.SetStrokeColor( color( rgb, 1.0 ) );
             gal.SetFillColor( color( rgb, 1.0 ) );
             gal.SetLineWidth( screenStroke );

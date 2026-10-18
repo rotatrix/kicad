@@ -205,9 +205,6 @@ void EDA_DRAW_PANEL_GAL::SetFocus()
 
 void EDA_DRAW_PANEL_GAL::onPaint( wxPaintEvent& WXUNUSED( aEvent ) )
 {
-#ifdef KICAD_OPENAXIS
-    initOpenAxis();
-#endif
     DoRePaint( false );
 }
 
@@ -287,6 +284,13 @@ bool EDA_DRAW_PANEL_GAL::DoRePaint( bool aAllowSkip )
 
     if( m_drawing )
         return false;
+
+#ifdef KICAD_OPENAXIS
+    // Startup and timer-driven rendering can bypass onPaint entirely (and the
+    // schematic canvas rejects early native paints before GAL is initialized).
+    // Register at the shared drawing entry point once native resources are ready.
+    initOpenAxis();
+#endif
 
     m_lastRepaintStart = std::chrono::steady_clock::now();
 
