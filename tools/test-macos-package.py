@@ -13,6 +13,7 @@ def run(*args, **kwargs):
 
 
 def check(app, arch):
+    app = app.resolve()
     for relative in (
         'Contents/MacOS/kicad', 'Contents/MacOS/kicad-cli',
         'Contents/Frameworks/Python.framework', 'Contents/Resources/Licenses',
