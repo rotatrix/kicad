@@ -53,6 +53,8 @@ def adapt(manifest, source_url, source_sha, sdk_sha):
         ],
     }
     manifest["modules"].insert(manifest["modules"].index(module), checks)
+    # Package builds retain OpenAxis checks but omit unshipped upstream QA binaries.
+    module["config-opts"].append("-DKICAD_BUILD_QA_TESTS=OFF")
     # Ship translations inside the single app bundle, instead of a separate Locale ref.
     manifest["separate-locales"] = False
     return manifest
