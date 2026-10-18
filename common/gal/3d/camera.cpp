@@ -194,6 +194,20 @@ void CAMERA::SetBoardLookAtPos( const SFVEC3F& aBoardPos )
 }
 
 
+void CAMERA::SetLookAtPosKeepingView( const SFVEC3F& aLookAtPos )
+{
+    m_lookat_pos = aLookAtPos;
+    // Rebase the native orbit decomposition, leaving view/projection untouched.
+    // SetViewMatrix applies its distance limits on subsequent navigation writes.
+    m_camera_pos = m_viewMatrix
+                   * glm::inverse( m_rotationMatrix * m_rotationMatrixAux
+                                   * glm::translate( glm::mat4( 1.0f ), -m_lookat_pos ) )[3];
+    if( m_projectionType == PROJECTION_TYPE::PERSPECTIVE )
+        m_zoom = ( m_viewMatrix * glm::vec4( m_lookat_pos, 1.0f ) ).z / m_camera_pos_init.z;
+    SetT0_and_T1_current_T();
+}
+
+
 void CAMERA::zoomChanged()
 {
     if( m_zoom < m_minZoom )

@@ -54,6 +54,17 @@ int main()
             TRACK_BALL camera( { 0, 0, -100 }, { 0, 0, 0 }, projection );
             camera.SetCurWindowSize( wxSize( 1280, 720 ) );
             const auto initial = *Read( camera );
+            const SFVEC3F pivot( 7, -3, 2 );
+            camera.SetLookAtPosKeepingView( pivot );
+            require( ( Read( camera )->t - initial.t ).length() < 1e-4,
+                     "pivot handoff moves camera" );
+            require( close( Read( camera )->ortho_extent, initial.ortho_extent ),
+                     "pivot handoff changes projection" );
+            camera.SetCurMousePosition( wxPoint( 400, 300 ) );
+            camera.Drag( wxPoint( 400, 300 ) );
+            require( ( Read( camera )->t - initial.t ).length() < 1e-3,
+                     "native drag jumps after pivot handoff" );
+            camera.SetLookAtPosKeepingView( SFVEC3F( 0 ) );
             auto requested = initial;
             requested.t.x += 4;
             requested.t.y += 3;

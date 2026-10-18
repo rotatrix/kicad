@@ -136,6 +136,10 @@ public:
 
     void ShowPivot( std::optional<openaxis::Vec3> aPoint ) override
     {
+        if( aPoint )
+            m_canvas.m_camera.SetLookAtPosKeepingView(
+                    SFVEC3F( aPoint->x, aPoint->y, aPoint->z ) );
+        // Keep the native orbit reference after the transient marker disappears.
         m_pivot = aPoint;
         m_canvas.Request_refresh();
     }

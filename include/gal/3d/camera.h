@@ -159,6 +159,9 @@ public:
 
     void SetBoardLookAtPos( const SFVEC3F& aBoardPos );
 
+    /// Change the native orbit reference without moving the camera or changing projection.
+    void SetLookAtPosKeepingView( const SFVEC3F& aLookAtPos );
+
     void SetLookAtPos_T1( const SFVEC3F& aLookAtPos )
     {
         m_lookat_pos_t1 = aLookAtPos;

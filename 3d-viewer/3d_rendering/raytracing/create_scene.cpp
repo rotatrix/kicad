@@ -439,7 +439,15 @@ void RENDER_3D_RAYTRACE_BASE::Reload( REPORTER* aStatusReporter, REPORTER* aWarn
 
     std::bitset<LAYER_3D_END> layerFlags = m_boardAdapter.GetVisibleLayers();
 
-    if( !aOnlyLoadCopperAndShapes )
+    bool loadBoardBody = !aOnlyLoadCopperAndShapes;
+#ifdef KICAD_OPENAXIS
+    // OpenGL also uses this scene for navigation picks. Include the substrate
+    // so bare board regions can be picked, without a full renderer reload that
+    // resets the native camera's look-at point.
+    loadBoardBody = true;
+#endif
+
+    if( loadBoardBody )
     {
         const int outlineCount = m_boardAdapter.GetBoardPoly().OutlineCount();
 
